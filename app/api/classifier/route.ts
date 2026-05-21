@@ -6,7 +6,9 @@ import {
   VERDICTS,
   type ClassifierRequest,
   type ClassifierResponse,
+  type ReaskResult,
 } from "@/lib/contracts";
+import { evaluateCriticalReask } from "@/lib/server/brute-force";
 import { getOpenAI } from "@/lib/server/openai";
 
 /**
@@ -97,6 +99,10 @@ function isValidRequestBody(value: unknown): value is ClassifierRequest {
     return false;
   }
   if (!isAgeBand(v.ageBand)) return false;
+  // `sessionId` is optional; reject only if present and not a string.
+  if (v.sessionId !== undefined && typeof v.sessionId !== "string") {
+    return false;
+  }
   return true;
 }
 
@@ -114,7 +120,7 @@ export async function POST(
     return NextResponse.json({ error: "invalid_request" }, { status: 400 });
   }
 
-  const { input, topicLock, ageBand } = body;
+  const { input, topicLock, ageBand, sessionId } = body;
 
   let openai;
   try {
@@ -157,5 +163,27 @@ export async function POST(
   // even if VERDICTS later grows. Keeps the response type honest.
   void VERDICTS;
 
-  return NextResponse.json(result, { status: 200 });
+  // VOL-190: server-side semantic brute-force detection. Only runs when the
+  // verdict is `critical` AND the caller supplied a `sessionId`. The signal
+  // is advisory — the kid client's tree state machine remains the visual
+  // source of truth (see docs/brute-force.md). Detector failures must not
+  // poison the classifier response, so we surround the call with a guard.
+  let reask: ReaskResult | undefined;
+  if (result.verdict === "critical" && sessionId) {
+    try {
+      const evaluation = await evaluateCriticalReask(sessionId, input);
+      reask = {
+        isReask: evaluation.isReask,
+        consequence: evaluation.consequence,
+        reasksSoFar: evaluation.reasksSoFar,
+      };
+    } catch {
+      // Swallow: brute-force evaluation is advisory. Leave `reask` undefined
+      // so the response is still a valid Phase-1-shaped payload.
+    }
+  }
+
+  return NextResponse.json(reask ? { ...result, reask } : result, {
+    status: 200,
+  });
 }
