@@ -7,6 +7,7 @@
     "dev": "next dev",
     "eval:classifier": "tsx scripts/eval-classifier.ts",
     "lint": "next lint",
+    "prewarm": "bash scripts/prewarm.sh",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "verify:bundle": "bash scripts/inspect-client-bundle.sh",
