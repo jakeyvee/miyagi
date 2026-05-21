@@ -113,6 +113,17 @@ Quick reference:
    `501 not_implemented` by design. A `501` from the deployment URL proves
    routing works; the OpenAI wire-up is a separate ticket.
 
+## PWA install
+
+kid-quest ships a web manifest and a [Serwist](https://serwist.pages.dev/)
+service worker so the app installs to an iPhone home screen and launches in
+standalone mode. `/api/*` responses are explicitly `NetworkOnly` so the demo
+never serves stale classifier or session data.
+
+See [`docs/pwa-install.md`](docs/pwa-install.md) for iPhone + Android install
+steps, cache scope, refresh behavior, and the hot-spare device prep checklist
+for live demos.
+
 ## Out of scope for this foundation
 
 - Full parent flow, kid flow, LLM prompts, tree animation.
