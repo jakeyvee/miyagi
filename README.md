@@ -133,3 +133,21 @@ container, see [`docs/capacitor-evaluation.md`](docs/capacitor-evaluation.md)
 - Full parent flow, kid flow, LLM prompts, tree animation.
 - Fixture-mode runtime, logs UI, service worker.
 - Cloud sync, multi-kid profiles.
+
+## Privacy
+
+kid-quest is local-first: the OpenAI key is server-only, the parent surface
+stores settings + PIN hash in `localStorage` (`kid-quest:parent:v1`), the
+classifier log lives in IndexedDB (`kid-quest-logs`), and there is no
+microphone or audio path. See [`docs/privacy-audit.md`](docs/privacy-audit.md)
+for the architectural claims, where each is enforced in code, and the
+demo-day manual checks.
+
+CI gate:
+
+| script                         | what it checks                                                |
+| ------------------------------ | ------------------------------------------------------------- |
+| `npm run verify:privacy`       | source-tree scan: no client-side `openai` import / env read, no mic/audio/speech APIs, no `<input type="file">`. |
+| `npm run verify:network`       | no direct provider URLs (`api.openai.com` etc.) in `app/**` or `lib/**`. |
+| `npm run verify:bundle`        | greps `.next/static/**` for `OPENAI_API_KEY`, `sk-...`, audio APIs. Runs `npm run build` first if needed. |
+| `npm run verify:privacy:all`   | runs all three in order.                                      |
