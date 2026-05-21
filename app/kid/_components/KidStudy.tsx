@@ -43,6 +43,7 @@ import {
   treeSlot,
   verdictSlot,
 } from "./styles";
+import { Tree } from "./Tree";
 
 /**
  * Mobile kid study surface. Owns:
@@ -520,7 +521,7 @@ export function KidStudy() {
       <main style={screen} aria-busy="true">
         <div style={screenInner}>
           <div style={treeSlot} data-slot="tree">
-            Loading…
+            <Tree />
           </div>
         </div>
       </main>
@@ -531,8 +532,8 @@ export function KidStudy() {
     return (
       <main style={screen}>
         <div style={screenInner}>
-          <div style={treeSlot} data-slot="tree" aria-hidden="true">
-            Your tree will grow here.
+          <div style={treeSlot} data-slot="tree">
+            <Tree />
           </div>
           <p style={{ ...noteText, fontSize: "1rem", color: "#222" }}>
             Ask the grown-up to set things up before you start.
@@ -550,8 +551,8 @@ export function KidStudy() {
   return (
     <main style={screen}>
       <div style={screenInner}>
-        <div style={treeSlot} data-slot="tree" aria-hidden="true">
-          Your tree will grow here.
+        <div style={treeSlot} data-slot="tree">
+          <Tree />
         </div>
 
         <div style={verdictSlot} data-slot="verdict-chip" aria-live="polite">
