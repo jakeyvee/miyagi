@@ -124,6 +124,10 @@ See [`docs/pwa-install.md`](docs/pwa-install.md) for iPhone + Android install
 steps, cache scope, refresh behavior, and the hot-spare device prep checklist
 for live demos.
 
+For the Phase 2 question of whether to wrap the PWA in a native Capacitor
+container, see [`docs/capacitor-evaluation.md`](docs/capacitor-evaluation.md)
+(current recommendation: stay PWA-only).
+
 ## Out of scope for this foundation
 
 - Full parent flow, kid flow, LLM prompts, tree animation.
