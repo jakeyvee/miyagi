@@ -8,7 +8,12 @@ import {
   type CSSProperties,
 } from "react";
 import { VERDICTS, type ClassifierLogRecord, type Verdict } from "@/lib/contracts";
-import { clearLogs, listLogs } from "@/lib/parent/log-store";
+import {
+  clearLogs,
+  listLogsWithConsent,
+  setLogSyncConsent,
+} from "@/lib/parent/log-store";
+import { useSyncOptIn } from "@/lib/parent/sync-prefs";
 import {
   errorText,
   noteText,
@@ -512,12 +517,30 @@ export function ClassifierLogViewer() {
     }
   }, []);
 
+  const [consentMap, setConsentMap] = useState<Record<string, boolean>>({});
+  const [syncOpts] = useSyncOptIn();
+
   const loadInitial = useCallback(async () => {
     setState("loading");
     setError(null);
     setErrorDetailsOpen(false);
     try {
-      const rows = await listLogs({ limit: PAGE_SIZE });
+      const withConsent = await listLogsWithConsent({ limit: PAGE_SIZE });
+      const rows: ClassifierLogRecord[] = withConsent.map(
+        ({ id, sessionId, timestampMs, input, verdict, confidence }) => ({
+          id,
+          sessionId,
+          timestampMs,
+          input,
+          verdict,
+          confidence,
+        }),
+      );
+      const nextConsent: Record<string, boolean> = {};
+      for (const r of withConsent) {
+        if (r.syncConsent === true) nextConsent[r.id] = true;
+      }
+      setConsentMap(nextConsent);
       setLogs(rows);
       setHasMore(rows.length === PAGE_SIZE);
       setState("ready");
@@ -538,11 +561,28 @@ export function ClassifierLogViewer() {
     if (!oldest) return;
     setLoadingMore(true);
     try {
-      const next = await listLogs({
+      const next = await listLogsWithConsent({
         limit: PAGE_SIZE,
         beforeTimestampMs: oldest.timestampMs,
       });
-      setLogs((current) => [...current, ...next]);
+      const trimmed: ClassifierLogRecord[] = next.map(
+        ({ id, sessionId, timestampMs, input, verdict, confidence }) => ({
+          id,
+          sessionId,
+          timestampMs,
+          input,
+          verdict,
+          confidence,
+        }),
+      );
+      setLogs((current) => [...current, ...trimmed]);
+      setConsentMap((current) => {
+        const merged = { ...current };
+        for (const r of next) {
+          if (r.syncConsent === true) merged[r.id] = true;
+        }
+        return merged;
+      });
       setHasMore(next.length === PAGE_SIZE);
     } catch (cause) {
       console.warn("[kid-quest] failed to page classifier logs", cause);
@@ -551,6 +591,18 @@ export function ClassifierLogViewer() {
       setLoadingMore(false);
     }
   }, [logs, loadingMore]);
+
+  const toggleConsent = useCallback(async (id: string) => {
+    const current = consentMap[id] === true;
+    const next = !current;
+    setConsentMap((prev) => ({ ...prev, [id]: next }));
+    try {
+      await setLogSyncConsent(id, next);
+    } catch (cause) {
+      console.warn("[kid-quest] failed to toggle consent", cause);
+      setConsentMap((prev) => ({ ...prev, [id]: current }));
+    }
+  }, [consentMap]);
 
   const handleClear = useCallback(async () => {
     setClearing(true);
@@ -709,6 +761,9 @@ export function ClassifierLogViewer() {
               key={group.dayStartMs}
               group={group}
               todayStartMs={todayStartMs}
+              showConsent={syncOpts.logs}
+              consentMap={consentMap}
+              onToggleConsent={(id) => void toggleConsent(id)}
             />
           ))}
         </ul>
@@ -825,9 +880,18 @@ function FilterRow({
 interface DayGroupProps {
   group: GroupedDay;
   todayStartMs: number;
+  showConsent: boolean;
+  consentMap: Record<string, boolean>;
+  onToggleConsent: (id: string) => void;
 }
 
-function DayGroup({ group, todayStartMs }: DayGroupProps) {
+function DayGroup({
+  group,
+  todayStartMs,
+  showConsent,
+  consentMap,
+  onToggleConsent,
+}: DayGroupProps) {
   const relative = relativeDayLabel(group.dayStartMs, todayStartMs);
   const headerText = formatDayHeader(group.dayStartMs);
   return (
@@ -837,7 +901,13 @@ function DayGroup({ group, todayStartMs }: DayGroupProps) {
         <span style={logStyles.relativePill}>{relative}</span>
       </li>
       {group.rows.map((log) => (
-        <LogRow key={log.id} log={log} />
+        <LogRow
+          key={log.id}
+          log={log}
+          showConsent={showConsent}
+          consented={consentMap[log.id] === true}
+          onToggleConsent={onToggleConsent}
+        />
       ))}
     </>
   );
@@ -845,9 +915,26 @@ function DayGroup({ group, todayStartMs }: DayGroupProps) {
 
 interface LogRowProps {
   log: ClassifierLogRecord;
+  showConsent: boolean;
+  consented: boolean;
+  onToggleConsent: (id: string) => void;
 }
 
-function LogRow({ log }: LogRowProps) {
+const consentToggleStyle = (active: boolean): CSSProperties => ({
+  appearance: "none",
+  border: active ? "1px solid #166534" : "1px solid #d4d4d8",
+  background: active ? "#dcfce7" : "#fff",
+  color: active ? "#166534" : "#666",
+  borderRadius: "999px",
+  padding: "0.125rem 0.5rem",
+  fontSize: "0.6875rem",
+  fontWeight: 600,
+  cursor: "pointer",
+  minHeight: "1.5rem",
+  lineHeight: 1,
+});
+
+function LogRow({ log, showConsent, consented, onToggleConsent }: LogRowProps) {
   const [expanded, setExpanded] = useState(false);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const palette = VERDICT_COLORS[log.verdict];
@@ -892,11 +979,33 @@ function LogRow({ log }: LogRowProps) {
   return (
     <li style={logStyles.card}>
       <div style={logStyles.headerRow}>
-        <span
-          style={verdictChipStyle(log.verdict)}
-          aria-label={`verdict: ${palette.label}`}
-        >
-          {palette.label}
+        <span style={{ display: "flex", gap: "0.375rem", alignItems: "center" }}>
+          <span
+            style={verdictChipStyle(log.verdict)}
+            aria-label={`verdict: ${palette.label}`}
+          >
+            {palette.label}
+          </span>
+          {showConsent ? (
+            <button
+              type="button"
+              onClick={() => onToggleConsent(log.id)}
+              style={consentToggleStyle(consented)}
+              aria-pressed={consented}
+              aria-label={
+                consented
+                  ? "Revoke sync consent for this record"
+                  : "Allow this record to sync to cloud"
+              }
+              title={
+                consented
+                  ? "Sync consent: ON (this row may be uploaded)"
+                  : "Sync consent: OFF (this row stays local)"
+              }
+            >
+              {consented ? "sync on" : "sync off"}
+            </button>
+          ) : null}
         </span>
         <div style={logStyles.confidenceWrap}>
           <span

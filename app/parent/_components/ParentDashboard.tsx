@@ -5,9 +5,10 @@ import type { ParentSettings } from "@/lib/contracts";
 import { setDemoMode, useDemoMode } from "@/lib/kid/demo-mode";
 import { ClassifierLogViewer } from "./ClassifierLogViewer";
 import { Settings } from "./Settings";
+import { SyncPanel } from "./SyncPanel";
 import { heading, screen } from "./styles";
 
-type Tab = "settings" | "logs";
+type Tab = "settings" | "logs" | "sync";
 
 const TAB_STORAGE_KEY = "kid-quest:parent:lastTab";
 
@@ -51,7 +52,7 @@ const tabButton = (active: boolean): CSSProperties => ({
 const logsPanelHeading: CSSProperties = { ...heading };
 
 function isTab(value: unknown): value is Tab {
-  return value === "settings" || value === "logs";
+  return value === "settings" || value === "logs" || value === "sync";
 }
 
 function readPersistedTab(): Tab {
@@ -154,6 +155,17 @@ export function ParentDashboard({ initialSettings, onSettingsSaved }: Props) {
           >
             Logs
           </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "sync"}
+            aria-controls="parent-tab-sync"
+            id="parent-tabbtn-sync"
+            onClick={() => selectTab("sync")}
+            style={tabButton(tab === "sync")}
+          >
+            Sync
+          </button>
         </div>
       </div>
 
@@ -191,7 +203,7 @@ export function ParentDashboard({ initialSettings, onSettingsSaved }: Props) {
             ) : null}
           </div>
         </div>
-      ) : (
+      ) : tab === "logs" ? (
         <main
           style={screen}
           role="tabpanel"
@@ -201,6 +213,14 @@ export function ParentDashboard({ initialSettings, onSettingsSaved }: Props) {
           <h1 style={logsPanelHeading}>Classifier logs</h1>
           <ClassifierLogViewer />
         </main>
+      ) : (
+        <div
+          role="tabpanel"
+          id="parent-tab-sync"
+          aria-labelledby="parent-tabbtn-sync"
+        >
+          <SyncPanel />
+        </div>
       )}
     </>
   );

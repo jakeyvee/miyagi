@@ -178,3 +178,24 @@ rehearsal log live in `docs/`:
   build, and exits non-zero on any non-2xx — treating
   `503 missing_provider_env` as a CRITICAL pre-warm failure. Run at
   T-60 and again at T-10 before doors.
+
+## Cloud sync (opt-in)
+
+Phase 2 ships an opt-in cloud-sync surface (VOL-195). It is **OFF by
+default everywhere** — the kid study flow continues to work identically
+when sync is disabled or the backend is unreachable. Per-feature opt-in
+(`settings`, `logs`) plus a per-record `syncConsent` flag on every log
+row gate what leaves the device. Default server retention is 30 days,
+parent-configurable in the dashboard's **Sync** tab.
+
+Vendor-neutral seam: every route handler depends only on the
+`SyncAdapter` interface in `lib/server/sync/adapter.ts`. This build
+ships an in-memory dev stub (`SYNC_BACKEND=memory`, default) and a
+stubbed Supabase adapter (`SYNC_BACKEND=supabase`) — swapping backends
+is a single-file change. The Supabase env (`SUPABASE_URL`,
+`SUPABASE_SERVICE_ROLE`) is **server-only**; never prefix with
+`NEXT_PUBLIC_`.
+
+See [`docs/cloud-sync.md`](docs/cloud-sync.md) for the threat model,
+opt-in semantics, per-record consent, deletion + export contracts, and
+the cut-over recipe for the Supabase adapter.
