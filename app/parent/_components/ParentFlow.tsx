@@ -7,9 +7,9 @@ import {
   readParentLocalState,
   type StoredPin,
 } from "@/lib/parent/local-store";
+import { ParentDashboard } from "./ParentDashboard";
 import { PinSetup } from "./PinSetup";
 import { PinUnlock } from "./PinUnlock";
-import { Settings } from "./Settings";
 import { screen, subheading } from "./styles";
 
 type Phase = "loading" | "setup" | "unlock" | "settings";
@@ -60,7 +60,10 @@ export function ParentFlow() {
   return (
     <>
       <TopNav />
-      <Settings initial={settings} onSaved={(next) => setSettings(next)} />
+      <ParentDashboard
+        initialSettings={settings}
+        onSettingsSaved={(next) => setSettings(next)}
+      />
     </>
   );
 }
