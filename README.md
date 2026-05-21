@@ -72,6 +72,17 @@ All re-exported from `@/lib/contracts`:
 Follow-on tickets should import these instead of redefining request/response
 shapes.
 
+## PWA install
+
+kid-quest ships a web manifest and a [Serwist](https://serwist.pages.dev/)
+service worker so the app installs to an iPhone home screen and launches in
+standalone mode. `/api/*` responses are explicitly `NetworkOnly` so the demo
+never serves stale classifier or session data.
+
+See [`docs/pwa-install.md`](docs/pwa-install.md) for iPhone + Android install
+steps, cache scope, refresh behavior, and the hot-spare device prep checklist
+for live demos.
+
 ## Out of scope for this foundation
 
 - Full parent flow, kid flow, LLM prompts, tree animation.
