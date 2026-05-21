@@ -143,6 +143,11 @@ microphone or audio path. See [`docs/privacy-audit.md`](docs/privacy-audit.md)
 for the architectural claims, where each is enforced in code, and the
 demo-day manual checks.
 
+Readiness: today's adult-proxy-tester stage demo posture passes the PDPA
+and minor-user readiness review. Any real minor-user pilot must clear the
+checklist in [`docs/pdpa-readiness-review.md`](docs/pdpa-readiness-review.md)
+first — that document is the formal gate for VOL-195 (opt-in cloud sync).
+
 CI gate:
 
 | script                         | what it checks                                                |
