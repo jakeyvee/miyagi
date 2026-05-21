@@ -65,6 +65,10 @@ All re-exported from `@/lib/contracts`:
 - `AgeBand`, `AGE_BANDS`, `isAgeBand` — closed set of age bands.
 - `ParentSettings`, `StudyTimeWindow` — local-first parent config.
 - `ClassifierRequest`, `ClassifierResponse` — POST `/api/classifier` shapes.
+- `AnswerRequest` — POST `/api/answer` body (streaming assistive helper).
+- `SocraticRequest`, `SocraticTurn`, `SocraticTurnRole` — POST `/api/socratic`
+  body shapes for the Socratic tutor.
+- `SOCRATIC_TURN_CAP` — max tutor turns before the kid can request a hint.
 - `SessionEvent`, `SessionEventType`, `TreeState` — kid-session event union.
 - `FixtureRecord` — canned input/response pair for demo/fixture mode.
 - `ClassifierLogRecord` — one row of the local parent-facing log.
