@@ -15,3 +15,12 @@ export type {
 } from "./session";
 export type { FixtureRecord } from "./fixture";
 export type { ClassifierLogRecord } from "./log";
+export {
+  SOCRATIC_TURN_CAP,
+} from "./turns";
+export type {
+  AnswerRequest,
+  SocraticRequest,
+  SocraticTurn,
+  SocraticTurnRole,
+} from "./turns";
