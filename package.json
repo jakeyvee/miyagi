@@ -16,12 +16,12 @@
     "verify:privacy:all": "npm run verify:privacy && npm run verify:network && npm run verify:bundle"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.97.1",
     "next": "^15.1.0",
-    "openai": "^6.38.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "serwist": "^9.5.11",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "serwist": "^9.5.11"
   },
   "devDependencies": {
     "@serwist/next": "^9.5.11",

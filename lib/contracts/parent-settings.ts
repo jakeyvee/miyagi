@@ -1,18 +1,11 @@
 import type { AgeBand } from "./age-band";
 
-/** Wall-clock time of day, "HH:MM" 24-hour. v1 has one daily window. */
-export interface StudyTimeWindow {
-  startHHMM: string;
-  endHHMM: string;
-}
-
 /**
  * Single source of truth for parent-controlled settings.
- * v1 holds one active topic lock, one age band, one daily window.
- * Stored local-first on the parent device; no cloud sync yet.
+ * v1 holds one active topic lock and one age band.
+ * Stored local-first on the parent device; opt-in cloud sync (VOL-195).
  */
 export interface ParentSettings {
   topicLock: string;
   ageBand: AgeBand;
-  studyTimeWindow: StudyTimeWindow;
 }

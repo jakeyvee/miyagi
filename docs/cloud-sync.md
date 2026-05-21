@@ -146,13 +146,13 @@ the routes never 503 on env.
 
 Server-only via `lib/server/env.ts::getServerEnv()`. All sync env vars
 are OPTIONAL — `getServerEnv()` still only throws when
-`OPENAI_API_KEY` is missing.
+`ANTHROPIC_API_KEY` is missing.
 
 | var                     | purpose                                                           | when required                        |
 | ----------------------- | ----------------------------------------------------------------- | ------------------------------------ |
 | `SYNC_BACKEND`          | `"memory"` (default) \| `"supabase"`                              | optional; defaults to memory         |
 | `SUPABASE_URL`          | Supabase project URL                                              | only when `SYNC_BACKEND=supabase`    |
-| `SUPABASE_SERVICE_ROLE` | Server-only service-role key. Same trust class as OPENAI_API_KEY. | only when `SYNC_BACKEND=supabase`    |
+| `SUPABASE_SERVICE_ROLE` | Server-only service-role key. Same trust class as ANTHROPIC_API_KEY. | only when `SYNC_BACKEND=supabase`    |
 
 **Never** prefix any of these with `NEXT_PUBLIC_`. The privacy verify
 script already enforces this on OpenAI; the same hygiene applies here.

@@ -4,10 +4,10 @@
  * contract. Walks the source tree and fails (exit 1) if any of these
  * invariants is violated:
  *
- *   1. The `openai` SDK is only ever imported from `app/api/**` or
- *      `lib/server/**`.
- *   2. `OPENAI_API_KEY` is never referenced with a `NEXT_PUBLIC_` prefix.
- *   3. `process.env.OPENAI_API_KEY` is only read inside `app/api/**` or
+ *   1. The `@anthropic-ai/sdk` package is only ever imported from
+ *      `app/api/**` or `lib/server/**`.
+ *   2. `ANTHROPIC_API_KEY` is never referenced with a `NEXT_PUBLIC_` prefix.
+ *   3. `process.env.ANTHROPIC_API_KEY` is only read inside `app/api/**` or
  *      `lib/server/**` (the canonical reader is `lib/server/env.ts`).
  *   4. No microphone / audio / Web Speech APIs appear in any source file
  *      (typed text input only).
@@ -78,7 +78,7 @@ const SKIP_PATHS = new Set<string>([
 const SKIP_PATH_PREFIXES = ["data/classifier-corpus/"];
 
 // Paths that ARE allowed to import from `openai` or read
-// `process.env.OPENAI_API_KEY`. Anything under these prefixes is considered
+// `process.env.ANTHROPIC_API_KEY`. Anything under these prefixes is considered
 // server-only.
 const SERVER_ONLY_PREFIXES = ["app/api/", "lib/server/"];
 
@@ -126,17 +126,17 @@ const CODE_EXTENSIONS = new Set([
 ]);
 
 // A small set of rules where ANY appearance — even in docs or JSON — is a
-// real privacy bug. NEXT_PUBLIC_*OPENAI* in a doc would be a leak waiting to
-// be copy-pasted; a NEXT_PUBLIC_ env var literally cannot be safely
+// real privacy bug. NEXT_PUBLIC_*ANTHROPIC* in a doc would be a leak waiting
+// to be copy-pasted; a NEXT_PUBLIC_ env var literally cannot be safely
 // mentioned without contradicting the policy.
 const ALL_FILE_EXTENSIONS = SCAN_EXTENSIONS;
 
-const OPENAI_IMPORT_RE =
-  /(?:from\s+["']openai["']|require\(\s*["']openai["']\s*\))/;
+const ANTHROPIC_IMPORT_RE =
+  /(?:from\s+["']@anthropic-ai\/sdk["']|require\(\s*["']@anthropic-ai\/sdk["']\s*\))/;
 
-const NEXT_PUBLIC_OPENAI_RE = /NEXT_PUBLIC_[A-Z0-9_]*OPENAI[A-Z0-9_]*/;
+const NEXT_PUBLIC_ANTHROPIC_RE = /NEXT_PUBLIC_[A-Z0-9_]*ANTHROPIC[A-Z0-9_]*/;
 
-const OPENAI_ENV_READ_RE = /process\.env\.OPENAI_API_KEY/;
+const ANTHROPIC_ENV_READ_RE = /process\.env\.ANTHROPIC_API_KEY/;
 
 // Microphone / audio / Web Speech API surface. Kid-quest is typed-text only.
 const AUDIO_API_RE =
@@ -147,35 +147,35 @@ const FILE_INPUT_RE = /<input[^>]*type=["']file["']/;
 
 const RULES: LineRule[] = [
   {
-    id: "no-client-openai-import",
+    id: "no-client-anthropic-import",
     description:
-      "`openai` package may only be imported from app/api/** or lib/server/**.",
+      "`@anthropic-ai/sdk` package may only be imported from app/api/** or lib/server/**.",
     extensions: CODE_EXTENSIONS,
     check: (line, ctx) => {
       if (ctx.isServerOnly) return null;
-      if (!OPENAI_IMPORT_RE.test(line)) return null;
-      return "client-readable file imports from `openai`";
+      if (!ANTHROPIC_IMPORT_RE.test(line)) return null;
+      return "client-readable file imports from `@anthropic-ai/sdk`";
     },
   },
   {
-    id: "no-next-public-openai",
+    id: "no-next-public-anthropic",
     description:
-      "OPENAI_API_KEY must never be prefixed with NEXT_PUBLIC_ (anywhere — even docs — since it would normalize the leak).",
+      "ANTHROPIC_API_KEY must never be prefixed with NEXT_PUBLIC_ (anywhere — even docs — since it would normalize the leak).",
     extensions: ALL_FILE_EXTENSIONS,
     check: (line) => {
-      if (!NEXT_PUBLIC_OPENAI_RE.test(line)) return null;
-      return "reference to NEXT_PUBLIC_*OPENAI* env var";
+      if (!NEXT_PUBLIC_ANTHROPIC_RE.test(line)) return null;
+      return "reference to NEXT_PUBLIC_*ANTHROPIC* env var";
     },
   },
   {
-    id: "no-client-openai-env-read",
+    id: "no-client-anthropic-env-read",
     description:
-      "process.env.OPENAI_API_KEY may only be read from app/api/** or lib/server/** code files.",
+      "process.env.ANTHROPIC_API_KEY may only be read from app/api/** or lib/server/** code files.",
     extensions: CODE_EXTENSIONS,
     check: (line, ctx) => {
       if (ctx.isServerOnly) return null;
-      if (!OPENAI_ENV_READ_RE.test(line)) return null;
-      return "client-readable file reads process.env.OPENAI_API_KEY";
+      if (!ANTHROPIC_ENV_READ_RE.test(line)) return null;
+      return "client-readable file reads process.env.ANTHROPIC_API_KEY";
     },
   },
   {

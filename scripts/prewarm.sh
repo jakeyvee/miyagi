@@ -6,7 +6,7 @@
 # build to:
 #
 #   1. Confirm the function is reachable (kicks the cold start).
-#   2. Confirm `hasOpenAiKey: true` from /api/health.
+#   2. Confirm `hasAnthropicKey: true` from /api/health.
 #   3. Confirm the classifier route returns 200 for a smoke payload.
 #
 # A 503 `missing_provider_env` from /api/classifier is treated as a CRITICAL
@@ -76,8 +76,8 @@ HEALTH_BODY="$(cat "$HEALTH_TMP")"
 log "  body: ${HEALTH_BODY}"
 
 # Lightweight string match — avoids needing jq on stage laptops.
-if ! printf '%s' "$HEALTH_BODY" | grep -q '"hasOpenAiKey":true'; then
-  fail "/api/health returned hasOpenAiKey != true. The OPENAI_API_KEY env var is missing or empty on the deployed build. Fix it in Vercel and REDEPLOY."
+if ! printf '%s' "$HEALTH_BODY" | grep -q '"hasAnthropicKey":true'; then
+  fail "/api/health returned hasAnthropicKey != true. The ANTHROPIC_API_KEY env var is missing or empty on the deployed build. Fix it in Vercel and REDEPLOY."
 fi
 
 log "  OK (key wired)"
@@ -116,7 +116,7 @@ log "  body: ${CLASSIFIER_BODY_OUT}"
 
 if [[ "$CLASSIFIER_STATUS" == "503" ]] && \
    printf '%s' "$CLASSIFIER_BODY_OUT" | grep -q 'missing_provider_env'; then
-  fail "/api/classifier 503 missing_provider_env — OPENAI_API_KEY is missing on the deployed build despite /api/health reporting it. Likely a stale deploy: REDEPLOY in Vercel."
+  fail "/api/classifier 503 missing_provider_env — ANTHROPIC_API_KEY is missing on the deployed build despite /api/health reporting it. Likely a stale deploy: REDEPLOY in Vercel."
 fi
 
 if [[ "${CLASSIFIER_STATUS:0:1}" != "2" ]]; then

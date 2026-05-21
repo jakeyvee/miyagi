@@ -3,7 +3,7 @@
 #
 # Final-line-of-defense check: greps the built Next.js client bundle for
 # anything that should never reach the browser. Catches the case where a
-# developer adds a `NEXT_PUBLIC_OPENAI_API_KEY`, accidentally imports the
+# developer adds a `NEXT_PUBLIC_ANTHROPIC_API_KEY`, accidentally imports the
 # `openai` SDK in a client component, or pulls in a microphone API.
 #
 # Runs `npm run build` first if `.next` is missing.
@@ -36,12 +36,12 @@ fi
 # Patterns that must NEVER appear in the static client bundle.
 # Each entry is "<grep-flag>::<pattern>::<label>".
 PATTERNS=(
-  "F::OPENAI_API_KEY::OPENAI_API_KEY identifier"
-  "E::sk-[A-Za-z0-9_-]{16,}::OpenAI secret key literal (sk-...)"
+  "F::ANTHROPIC_API_KEY::ANTHROPIC_API_KEY identifier"
+  "E::sk-ant-[A-Za-z0-9_-]{16,}::Anthropic secret key literal (sk-ant-...)"
   "F::getUserMedia::microphone API (getUserMedia)"
   "F::MediaRecorder::audio recorder API (MediaRecorder)"
   "F::webkitSpeechRecognition::Web Speech API"
-  "F::api.openai.com::direct OpenAI URL"
+  "F::api.anthropic.com::direct Anthropic URL"
 )
 
 header="kid-quest client bundle inspect"

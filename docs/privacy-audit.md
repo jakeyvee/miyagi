@@ -7,8 +7,8 @@ verbatim during the demo dry run.
 ## TL;DR
 
 - The OpenAI API key never leaves the server. The browser bundle has no SDK
-  import, no `process.env.OPENAI_API_KEY` read, no `NEXT_PUBLIC_*` envar
-  carrying it, and no direct `api.openai.com` URL.
+  import, no `process.env.ANTHROPIC_API_KEY` read, no `NEXT_PUBLIC_*` envar
+  carrying it, and no direct `api.anthropic.com` URL.
 - The app has zero microphone, audio, or speech APIs. Kid input is typed
   text only.
 - Parent settings and the PIN hash live in a single `localStorage` key on
@@ -16,23 +16,23 @@ verbatim during the demo dry run.
   same device. There is no cloud sync in v1.
 - All LLM provider calls go through Next.js route handlers under
   `app/api/**`, which import the OpenAI SDK exclusively from
-  `lib/server/openai.ts` (the file starts with `import "server-only";`).
+  `lib/server/anthropic.ts` (the file starts with `import "server-only";`).
 
 ## The four architectural claims
 
-### Claim 1 — `OPENAI_API_KEY` is server-only
+### Claim 1 — `ANTHROPIC_API_KEY` is server-only
 
 | where it is read       | file                                | guard                              |
 | ---------------------- | ----------------------------------- | ---------------------------------- |
 | canonical reader       | `lib/server/env.ts:16`              | first line is `import "server-only";` |
 | health probe (presence only) | `app/api/health/route.ts:33-34`     | route handler — never sent to browser |
-| OpenAI client constructor | `lib/server/openai.ts:18`           | server-only marker; lazy singleton |
+| OpenAI client constructor | `lib/server/anthropic.ts:18`           | server-only marker; lazy singleton |
 
 The browser bundle is checked at build time by `scripts/inspect-client-bundle.sh`,
-which `grep`s every file under `.next/static/**` for `OPENAI_API_KEY` and
-`sk-...` literals.
+which `grep`s every file under `.next/static/**` for `ANTHROPIC_API_KEY` and
+`sk-ant-...` literals.
 
-The name `NEXT_PUBLIC_OPENAI_API_KEY` is forbidden everywhere in the repo —
+The name `NEXT_PUBLIC_ANTHROPIC_API_KEY` is forbidden everywhere in the repo —
 even in docs — so it never gets copy-pasted into a Vercel env-var form.
 
 ### Claim 2 — No microphone / audio / speech APIs
@@ -74,7 +74,7 @@ does not interrupt the kid flow. No log row is ever sent to the server in v1.
 
 ### Claim 4 — All LLM access goes through `app/api/**`
 
-The single OpenAI client lives in `lib/server/openai.ts`. Every file in that
+The single OpenAI client lives in `lib/server/anthropic.ts`. Every file in that
 directory starts with `import "server-only";`, which causes the Next.js
 bundler to fail the build if the module is imported from any client
 component. The three route handlers that use it:
@@ -84,7 +84,7 @@ component. The three route handlers that use it:
 - `app/api/socratic/route.ts:9` — streaming Socratic tutor.
 
 The health probe (`app/api/health/route.ts`) intentionally does **not** import
-the SDK — it only reports `hasOpenAiKey: <boolean>` without ever returning
+the SDK — it only reports `hasAnthropicKey: <boolean>` without ever returning
 the value.
 
 The service worker (`app/sw.ts:24-31`) explicitly registers `/api/*` as
@@ -94,9 +94,9 @@ The service worker (`app/sw.ts:24-31`) explicitly registers `/api/*` as
 
 | script                           | what it catches                                                                                                  |
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `npm run verify:privacy`         | static scan of source tree for: client-side `openai` import, `NEXT_PUBLIC_*OPENAI*` env vars, client-side `process.env.OPENAI_API_KEY` reads, microphone/audio/speech API references, `<input type="file">`. |
-| `npm run verify:network`         | static scan of `app/**` and `lib/**` for any direct provider URL (`api.openai.com`, `api.anthropic.com`, `generativelanguage.googleapis.com`). All client network calls must be same-origin `/api/*`. |
-| `npm run verify:bundle`          | greps the built `.next/static/**` bundle for `OPENAI_API_KEY`, `sk-...` key literals, `getUserMedia`, `MediaRecorder`, `webkitSpeechRecognition`, and `api.openai.com`. Runs `npm run build` first if `.next` is missing. |
+| `npm run verify:privacy`         | static scan of source tree for: client-side `openai` import, `NEXT_PUBLIC_*OPENAI*` env vars, client-side `process.env.ANTHROPIC_API_KEY` reads, microphone/audio/speech API references, `<input type="file">`. |
+| `npm run verify:network`         | static scan of `app/**` and `lib/**` for any direct provider URL (`api.anthropic.com`, `api.anthropic.com`, `generativelanguage.googleapis.com`). All client network calls must be same-origin `/api/*`. |
+| `npm run verify:bundle`          | greps the built `.next/static/**` bundle for `ANTHROPIC_API_KEY`, `sk-ant-...` key literals, `getUserMedia`, `MediaRecorder`, `webkitSpeechRecognition`, and `api.anthropic.com`. Runs `npm run build` first if `.next` is missing. |
 | `npm run verify:privacy:all`     | runs all three serially (`verify:privacy && verify:network && verify:bundle`) for a single CI gate.              |
 
 All three exit `0` on PASS and `1` on FAIL (`2` for tool/build errors in the
@@ -105,13 +105,13 @@ bundle inspector). Run them locally before opening a PR.
 ### Documented exceptions
 
 The privacy scanner intentionally applies the audio/speech and
-`process.env.OPENAI_API_KEY` rules to **code files only** (`.ts`, `.tsx`,
+`process.env.ANTHROPIC_API_KEY` rules to **code files only** (`.ts`, `.tsx`,
 `.js`, `.jsx`, `.mjs`, `.cjs`, `.html`). Markdown is excluded for those
 rules because:
 
 - `docs/capacitor-evaluation.md:173` names `SpeechRecognition` precisely to
   explain why Capacitor plugins for it are banned.
-- `docs/deployment.md:203` quotes `process.env.OPENAI_API_KEY` while
+- `docs/deployment.md:203` quotes `process.env.ANTHROPIC_API_KEY` while
   explaining why the health probe reads it directly.
 
 The `NEXT_PUBLIC_*OPENAI*` rule, by contrast, applies to **all** files
@@ -134,10 +134,10 @@ scripts pass on `main`.
 2. Settings → Safari → Advanced → **Web Inspector**, plug into a Mac and
    open Safari → Develop → \<device\> → kid-quest.
 3. **Network** tab → Reload the page → confirm no request to
-   `api.openai.com` or any non-same-origin host. The only outbound calls
+   `api.anthropic.com` or any non-same-origin host. The only outbound calls
    should be to your Vercel domain.
 4. **Sources** tab → search the loaded scripts (Cmd+Opt+F) for:
-   - `OPENAI_API_KEY` → expect zero matches.
+   - `ANTHROPIC_API_KEY` → expect zero matches.
    - `sk-` → expect zero matches.
    - `getUserMedia` → expect zero matches.
 
@@ -157,7 +157,7 @@ scripts pass on `main`.
 ### C. Confirm the server boundary is healthy
 
 1. Hit `GET https://<deployed-url>/api/health` from a phone browser. Expect:
-   `{"ok":true,"hasOpenAiKey":true}`. If `hasOpenAiKey:false`, fix the env
+   `{"ok":true,"hasAnthropicKey":true}`. If `hasAnthropicKey:false`, fix the env
    var in Vercel and redeploy before continuing.
 2. Hit `POST https://<deployed-url>/api/classifier` with an empty body.
    Expect `400 invalid_json` (proves the route is reachable and validating).
@@ -179,10 +179,10 @@ scripts pass on `main`.
 
 | claim                                          | automated test                                              | manual check                            | residual risk                                                                                                                          |
 | ---------------------------------------------- | ----------------------------------------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| 1. `OPENAI_API_KEY` is server-only             | `verify:privacy` (no client read / no `NEXT_PUBLIC_*`) + `verify:bundle` (no `OPENAI_API_KEY` / `sk-` in `.next/static`) | DevTools Sources search for `OPENAI_API_KEY` / `sk-` | Someone could SSR the key into HTML via a Server Component. The bundle scan does not cover prerendered HTML — manual DevTools "Document" view check needed before each major release. |
+| 1. `ANTHROPIC_API_KEY` is server-only             | `verify:privacy` (no client read / no `NEXT_PUBLIC_*`) + `verify:bundle` (no `ANTHROPIC_API_KEY` / `sk-` in `.next/static`) | DevTools Sources search for `ANTHROPIC_API_KEY` / `sk-` | Someone could SSR the key into HTML via a Server Component. The bundle scan does not cover prerendered HTML — manual DevTools "Document" view check needed before each major release. |
 | 2. No mic / audio / speech APIs                | `verify:privacy` (regex on `getUserMedia` etc.) + `verify:bundle` (same regex on built static) | iOS mic permission probe                | A new dependency could pull in a speech API transitively. The bundle scan catches identifier names; an obfuscated minified rename would not be flagged. |
 | 3. Local-first storage only                    | none (positive presence cannot be statically proven, but `verify:network` ensures no client-side third-party hostname is contacted) | DevTools Storage tab: only `kid-quest:parent:v1` + `kid-quest-logs` | A future sync feature (VOL-195) must be a separate opt-in; the verify scripts will not catch a same-origin POST to a new sync route — add a new rule when that lands. |
-| 4. All LLM access goes through `app/api/**`    | `verify:privacy` (no `openai` import outside server-only) + `verify:network` (no `api.openai.com` URL in `app/**`/`lib/**`) | DevTools Network tab: zero requests to `api.openai.com` | A `lib/server/*` file could in theory `fetch()` a different provider directly. `verify:network` covers the top three providers' base hosts; add new providers to the list as needed. |
+| 4. All LLM access goes through `app/api/**`    | `verify:privacy` (no `openai` import outside server-only) + `verify:network` (no `api.anthropic.com` URL in `app/**`/`lib/**`) | DevTools Network tab: zero requests to `api.anthropic.com` | A `lib/server/*` file could in theory `fetch()` a different provider directly. `verify:network` covers the top three providers' base hosts; add new providers to the list as needed. |
 
 ## How to extend this audit
 

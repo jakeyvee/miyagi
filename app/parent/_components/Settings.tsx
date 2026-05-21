@@ -23,20 +23,15 @@ interface Props {
   onSaved: (next: ParentSettings) => void;
 }
 
-const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
-
 const DEFAULT_SETTINGS: ParentSettings = {
   topicLock: "",
   ageBand: "7-9",
-  studyTimeWindow: { startHHMM: "16:00", endHHMM: "18:00" },
 };
 
 export function Settings({ initial, onSaved }: Props) {
   const seed = initial ?? DEFAULT_SETTINGS;
   const [topicLock, setTopicLock] = useState(seed.topicLock);
   const [ageBand, setAgeBand] = useState<AgeBand>(seed.ageBand);
-  const [startHHMM, setStartHHMM] = useState(seed.studyTimeWindow.startHHMM);
-  const [endHHMM, setEndHHMM] = useState(seed.studyTimeWindow.endHHMM);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<ParentSettings | null>(initial);
 
@@ -51,19 +46,10 @@ export function Settings({ initial, onSaved }: Props) {
       setError("Topic lock cannot be empty.");
       return;
     }
-    if (!HHMM_RE.test(startHHMM) || !HHMM_RE.test(endHHMM)) {
-      setError("Times must be in HH:MM 24-hour format.");
-      return;
-    }
-    if (startHHMM === endHHMM) {
-      setError("Study window start and end cannot be the same time.");
-      return;
-    }
 
     const next: ParentSettings = {
       topicLock: trimmedTopic,
       ageBand,
-      studyTimeWindow: { startHHMM, endHHMM },
     };
     writeParentSettings(next);
     setTopicLock(trimmedTopic);
@@ -115,27 +101,6 @@ export function Settings({ initial, onSaved }: Props) {
             })}
           </div>
         </div>
-
-        <label style={fieldLabel}>
-          Study window starts (HH:MM)
-          <input
-            style={input}
-            type="time"
-            value={startHHMM}
-            onChange={(e) => setStartHHMM(e.target.value)}
-            required
-          />
-        </label>
-        <label style={fieldLabel}>
-          Study window ends (HH:MM)
-          <input
-            style={input}
-            type="time"
-            value={endHHMM}
-            onChange={(e) => setEndHHMM(e.target.value)}
-            required
-          />
-        </label>
 
         {error ? (
           <p style={errorText} role="alert">

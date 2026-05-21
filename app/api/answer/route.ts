@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { isAgeBand, type AgeBand, type AnswerRequest } from "@/lib/contracts";
-import { getOpenAI } from "@/lib/server/openai";
+import { getAnthropic } from "@/lib/server/anthropic";
 
-const MODEL = "gpt-4o-mini";
+const MODEL = "claude-haiku-4-5-20251001";
+const MAX_OUTPUT_TOKENS = 512;
 const MIN_INPUT_LEN = 1;
 const MAX_INPUT_LEN = 2000;
 
@@ -26,9 +27,9 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ error: validationError }, { status: 400 });
   }
 
-  let openai;
+  let anthropic;
   try {
-    openai = getOpenAI();
+    anthropic = getAnthropic();
   } catch {
     return NextResponse.json(
       { error: "missing_provider_env" },
@@ -40,13 +41,11 @@ export async function POST(request: Request): Promise<Response> {
 
   let upstream;
   try {
-    upstream = await openai.chat.completions.create({
+    upstream = anthropic.messages.stream({
       model: MODEL,
-      stream: true,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: body.input },
-      ],
+      max_tokens: MAX_OUTPUT_TOKENS,
+      system: systemPrompt,
+      messages: [{ role: "user", content: body.input }],
     });
   } catch {
     return NextResponse.json({ error: "stream_failed" }, { status: 502 });
@@ -56,10 +55,12 @@ export async function POST(request: Request): Promise<Response> {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
-        for await (const chunk of upstream) {
-          const delta = chunk.choices[0]?.delta?.content;
-          if (delta) {
-            controller.enqueue(encoder.encode(delta));
+        for await (const event of upstream) {
+          if (
+            event.type === "content_block_delta" &&
+            event.delta.type === "text_delta"
+          ) {
+            controller.enqueue(encoder.encode(event.delta.text));
           }
         }
         controller.close();

@@ -95,7 +95,7 @@ any of them is persisted server-side by kid-quest.
 | Tutor / answer stream content (model output) | OpenAI streaming completion from `/api/answer` and `/api/socratic` | Transient — streamed token-by-token to the kid client. Not persisted anywhere by us. | Until the stream ends; UI text lives in component state only.              | Kid (on device), kid-quest server (transient pipe), OpenAI (per API call)   | **No persistence by us.**                                  |
 | Brute-force embeddings (for re-ask detection) | OpenAI `text-embedding-3-small` invoked from `lib/server/brute-force.ts` | In-process memory on the Vercel function only; per-session window with a 30-minute sliding TTL | 30 minutes max; gone on function recycle; never written to disk by us       | The serverless function instance handling the session                       | **In-memory only.** No DB. No disk. Lost on cold start.   |
 | Service-worker runtime cache                | Serwist runtime cache (`app/sw.ts`)                   | On parent / kid device only                                            | Per Serwist cache policy for app shell. `/api/*` pinned to `NetworkOnly`. | Device user                                                                 | Not server-side. `/api/*` responses are **not** cached.    |
-| `/api/health` response                      | `app/api/health/route.ts`                             | Not stored. Returns `{ ok, hasOpenAiKey: boolean }`.                   | n/a                                                                        | Anyone who can hit the URL                                                  | No. Reports presence of the key, never the value.          |
+| `/api/health` response                      | `app/api/health/route.ts`                             | Not stored. Returns `{ ok, hasAnthropicKey: boolean }`.                   | n/a                                                                        | Anyone who can hit the URL                                                  | No. Reports presence of the key, never the value.          |
 | Vercel platform logs                        | Hosting platform — function invocations, request lines | Vercel's logging infrastructure                                        | Per Vercel's platform retention (out of our direct control)                | Vercel staff per their terms; project members of the kid-quest Vercel project | **Outside our codebase.** Honestly disclose: error paths can land in platform logs. See §5. |
 | OpenAI API logs                             | OpenAI's platform — kid input text + topic lock + age band on the wire to model + embedding endpoints | OpenAI's logging infrastructure                                        | Per OpenAI's API data usage / retention policy (out of our direct control)  | OpenAI per their terms                                                      | **Outside our codebase.** Default API usage policy applies — see §4 Retention. |
 
@@ -243,7 +243,7 @@ purposes without fresh consent.
 - **Incident response.** Today there is no server-side PII to lose, so an
   "incident" is bounded to: (a) source code or env var leak, (b) Vercel
   platform compromise, (c) OpenAI account / key compromise. The
-  documented response is: rotate the `OPENAI_API_KEY` via the Vercel
+  documented response is: rotate the `ANTHROPIC_API_KEY` via the Vercel
   dashboard (`docs/deployment.md` §7), redeploy, audit Vercel access.
   This is sufficient for the demo. **For a pilot**, an incident-response
   document must name a responsible person, a notification window, and a
@@ -312,7 +312,7 @@ before a minor-user pilot.
      — which will require a server-side identity and therefore a fresh
      privacy review.
 
-6. **`/api/health` returns `hasOpenAiKey: boolean`.**
+6. **`/api/health` returns `hasAnthropicKey: boolean`.**
    - Disposition (today): safe by design — only a boolean, never the
      value (`app/api/health/route.ts`). Documenting it here so it is not
      mis-flagged by a future reviewer.

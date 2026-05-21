@@ -213,7 +213,7 @@ Only execute if a [trigger in section 6](#6-triggers-to-revisit) fires.
   pass-through shell. No route-by-route work.
 - API calls: continue to live in `app/api/*` on Vercel. The WebView calls
   same-origin `/api/*` against `https://kid-quest.vercel.app`, the Serwist
-  SW continues to enforce `NetworkOnly`, and `OPENAI_API_KEY` stays
+  SW continues to enforce `NetworkOnly`, and `ANTHROPIC_API_KEY` stays
   server-only.
 - `npm run dev` continues to mean "run the Next app". A separate
   `npm run cap:run:ios` (in the wrapper folder, not the main `package.json`)

@@ -81,9 +81,9 @@ B. Wrong verdict
    - On Phone A: hand to Phone B first, gesture there.
 C. /api/classifier 5xx
    - curl /api/health.
-   - hasOpenAiKey:true  -> upstream issue, use Phone B
+   - hasAnthropicKey:true  -> upstream issue, use Phone B
      or the prerecorded video.
-   - hasOpenAiKey:false -> env wiped or stale deploy.
+   - hasAnthropicKey:false -> env wiped or stale deploy.
      Redeploy AFTER the show; for now, Phone B or video.
 D. Everything broken
    - Cut to 30s prerecorded walkthrough. Narrate over.

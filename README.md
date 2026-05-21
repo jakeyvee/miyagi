@@ -7,7 +7,7 @@ and one server-only API surface (`api`).
 
 ```sh
 npm install
-cp .env.example .env.local   # fill in OPENAI_API_KEY for route-handler work
+cp .env.example .env.local   # fill in ANTHROPIC_API_KEY for route-handler work
 npm run dev                  # http://localhost:3000
 ```
 
@@ -41,7 +41,7 @@ The contract is intentionally narrow:
 - **`app/api/**/route.ts`** — the only place that calls external LLM providers.
   Reads secrets via `getServerEnv()` from `@/lib/server/env`.
 
-**Do not** introduce a browser-side OpenAI client, expose `OPENAI_API_KEY` as
+**Do not** introduce a browser-side OpenAI client, expose `ANTHROPIC_API_KEY` as
 `NEXT_PUBLIC_*`, or fetch the OpenAI API from a client component. All LLM
 calls go through `app/api/*` route handlers.
 
@@ -52,7 +52,7 @@ is typed text only in v1.
 
 | name             | scope        | purpose                              |
 | ---------------- | ------------ | ------------------------------------ |
-| `OPENAI_API_KEY` | server-only  | Used by the classifier route handler.|
+| `ANTHROPIC_API_KEY` | server-only  | Used by the classifier route handler.|
 
 Server-only env is read through `getServerEnv()` (see `lib/server/env.ts`),
 which throws a clear error if a required key is missing.
@@ -95,7 +95,7 @@ Quick reference:
    Region is `iad1`. The classifier route gets a 30s `maxDuration` for
    streaming headroom; the health probe is capped at 5s.
 3. **Env vars** (Project Settings → Environment Variables):
-   - `OPENAI_API_KEY` — server-only. **Must not** start with `NEXT_PUBLIC_`,
+   - `ANTHROPIC_API_KEY` — server-only. **Must not** start with `NEXT_PUBLIC_`,
      or the value leaks into the browser bundle. Mark it as **Secret**. Apply
      to Production **and** Preview.
    - The app reads this via `getServerEnv()` in `lib/server/env.ts`, which
@@ -105,8 +105,8 @@ Quick reference:
 4. **Preview vs production**: same env vars, same code path. Previews carry
    Vercel's default `noindex` header; production is indexable.
 5. **Verify a deploy**: hit `GET /api/health` from a phone. Expected:
-   `{ "ok": true, "hasOpenAiKey": true }`. The key value is never returned —
-   only whether it is set. If `hasOpenAiKey` is `false`, the classifier is
+   `{ "ok": true, "hasAnthropicKey": true }`. The key value is never returned —
+   only whether it is set. If `hasAnthropicKey` is `false`, the classifier is
    guaranteed to fail; fix the env var and **redeploy** (Vercel does not
    auto-redeploy on env-var edits).
 6. **Classifier reachability**: `POST /api/classifier` currently returns
@@ -153,8 +153,8 @@ CI gate:
 | script                         | what it checks                                                |
 | ------------------------------ | ------------------------------------------------------------- |
 | `npm run verify:privacy`       | source-tree scan: no client-side `openai` import / env read, no mic/audio/speech APIs, no `<input type="file">`. |
-| `npm run verify:network`       | no direct provider URLs (`api.openai.com` etc.) in `app/**` or `lib/**`. |
-| `npm run verify:bundle`        | greps `.next/static/**` for `OPENAI_API_KEY`, `sk-...`, audio APIs. Runs `npm run build` first if needed. |
+| `npm run verify:network`       | no direct provider URLs (`api.anthropic.com` etc.) in `app/**` or `lib/**`. |
+| `npm run verify:bundle`        | greps `.next/static/**` for `ANTHROPIC_API_KEY`, `sk-ant-...`, audio APIs. Runs `npm run build` first if needed. |
 | `npm run verify:privacy:all`   | runs all three in order.                                      |
 
 ## Stage demo

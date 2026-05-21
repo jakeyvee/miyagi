@@ -18,35 +18,39 @@ interface Props {
 }
 
 const tabShell: CSSProperties = {
-  padding: "1rem 1.5rem 0",
-  maxWidth: "30rem",
+  padding: "var(--space-5) var(--space-5) 0",
+  maxWidth: "32rem",
   margin: "0 auto",
   width: "100%",
   display: "flex",
   flexDirection: "column",
-  gap: "0.75rem",
+  gap: "var(--space-3)",
 };
 
 const tabBarStyle: CSSProperties = {
   display: "flex",
-  gap: "0.5rem",
-  background: "#f4f4f5",
-  padding: "0.25rem",
-  borderRadius: "0.75rem",
+  gap: "var(--space-1)",
+  background: "var(--color-surface-soft)",
+  padding: "4px",
+  borderRadius: "var(--radius-pill)",
+  border: "1px solid var(--color-border)",
 };
 
 const tabButton = (active: boolean): CSSProperties => ({
   flex: 1,
   appearance: "none",
   border: "none",
-  background: active ? "#fff" : "transparent",
-  color: active ? "#111" : "#555",
-  borderRadius: "0.5rem",
-  padding: "0.625rem 0.5rem",
-  fontSize: "0.9375rem",
-  fontWeight: active ? 600 : 500,
+  background: active ? "var(--color-primary)" : "transparent",
+  color: active ? "var(--color-secondary)" : "var(--color-text-secondary)",
+  borderRadius: "var(--radius-pill)",
+  padding: "10px 12px",
+  fontFamily: "var(--font-mono)",
+  fontSize: "12px",
+  fontWeight: 600,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
   cursor: "pointer",
-  boxShadow: active ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+  transition: "background 200ms var(--ease-out), color 200ms var(--ease-out)",
 });
 
 const logsPanelHeading: CSSProperties = { ...heading };
@@ -75,13 +79,13 @@ function persistTab(tab: Tab): void {
 }
 
 const demoFooter: CSSProperties = {
-  padding: "1.25rem 1.5rem 1.5rem",
-  maxWidth: "30rem",
+  padding: "var(--space-4) var(--space-5) var(--space-5)",
+  maxWidth: "32rem",
   margin: "0 auto",
   width: "100%",
   display: "flex",
   flexDirection: "column",
-  gap: "0.5rem",
+  gap: "var(--space-2)",
   boxSizing: "border-box",
 };
 
@@ -89,30 +93,33 @@ const demoLinkButton: CSSProperties = {
   appearance: "none",
   background: "none",
   border: "none",
-  color: "#666",
-  fontSize: "0.75rem",
-  textDecoration: "underline",
+  color: "var(--color-text-secondary)",
+  fontFamily: "var(--font-mono)",
+  fontSize: "11px",
+  fontWeight: 600,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
   cursor: "pointer",
   padding: 0,
   alignSelf: "flex-start",
 };
 
 const demoPanel: CSSProperties = {
-  border: "1px solid #e5e5e0",
-  borderRadius: "0.5rem",
-  padding: "0.75rem 0.875rem",
-  background: "#fafaf7",
+  border: "1px solid var(--color-border)",
+  borderRadius: "var(--radius-card)",
+  padding: "var(--space-3) var(--space-4)",
+  background: "var(--color-surface-soft)",
   display: "flex",
   flexDirection: "column",
-  gap: "0.375rem",
-  fontSize: "0.8125rem",
-  color: "#444",
+  gap: "var(--space-2)",
+  fontSize: "13px",
+  color: "var(--color-text-secondary)",
 };
 
 const demoSwitchRow: CSSProperties = {
   display: "flex",
   alignItems: "center",
-  gap: "0.5rem",
+  gap: "var(--space-2)",
 };
 
 export function ParentDashboard({ initialSettings, onSettingsSaved }: Props) {
@@ -195,7 +202,7 @@ export function ParentDashboard({ initialSettings, onSettingsSaved }: Props) {
                     Replay fixtures on the kid surface (stage/demo only)
                   </label>
                 </div>
-                <p style={{ margin: 0, color: "#777" }}>
+                <p style={{ margin: 0, color: "var(--color-text-secondary)" }}>
                   When on, the kid surface skips the live tutor and plays a canned
                   fixture instead. Leave off for normal use.
                 </p>

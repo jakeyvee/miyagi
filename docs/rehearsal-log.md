@@ -48,7 +48,7 @@ Build + privacy gate (run once, before any rehearsal):
   task wrap-up).
 - `npm run verify:privacy:all` — exit 0 (will be re-confirmed post-doc-
   write).
-- `OPENAI_API_KEY` is **unset** in this sandbox, on purpose. All three
+- `ANTHROPIC_API_KEY` is **unset** in this sandbox, on purpose. All three
   rehearsals therefore exercise the documented **fail-closed** branch
   (Branch C in the runbook). This is itself a documented pre-warm
   failure scenario and is the most useful thing a tabletop run can
@@ -69,20 +69,20 @@ Build + privacy gate (run once, before any rehearsal):
 - Beats completed:
   - Beat 1 — Hand-off: n/a (UI beat; skipped on tabletop)
   - Beat 2 — Assistive: **failed-closed as designed**.
-    - `GET /api/health` → `200 OK`, body `{"ok":true,"hasOpenAiKey":false}`,
+    - `GET /api/health` → `200 OK`, body `{"ok":true,"hasAnthropicKey":false}`,
       latency ~18 ms.
     - `POST /api/classifier` with the canonical `fx-eng-assist-1`-style
       payload — `{"input":"How do you spell separate?","topicLock":"english","ageBand":"7-9","sessionId":"rehearsal-1"}`
       → `503 Service Unavailable`, body `{"error":"missing_provider_env"}`,
       latency ~242 ms.
   - Beats 3-7: skipped (no SDK call possible without the key).
-- Failure modes encountered: `hasOpenAiKey: false` on /api/health, and
+- Failure modes encountered: `hasAnthropicKey: false` on /api/health, and
   the resulting 503 `missing_provider_env` from /api/classifier. This is
   exactly the symptom the runbook's **Branch C** decision tree exists
-  for. The route's fail-closed contract (`getOpenAI()` throws →
+  for. The route's fail-closed contract (`getAnthropic()` throws →
   `app/api/classifier/route.ts` returns 503 rather than 500 with a stack
   trace) held.
-- Recovery taken: documented Branch C — if `hasOpenAiKey:false` shows up
+- Recovery taken: documented Branch C — if `hasAnthropicKey:false` shows up
   pre-show, redeploy with the env var set; if it shows up mid-show,
   pivot to Phone B or the prerecorded walkthrough. No live-stage
   recovery exists for a missing key.
@@ -99,7 +99,7 @@ Build + privacy gate (run once, before any rehearsal):
   - Beat 1 — Hand-off: n/a (UI)
   - Beat 2 — Assistive: n/a (covered in Rehearsal 1)
   - Beat 3 — Critical / Socratic:
-    - `GET /api/health` → `200 OK`, body `{"ok":true,"hasOpenAiKey":false}`,
+    - `GET /api/health` → `200 OK`, body `{"ok":true,"hasAnthropicKey":false}`,
       latency ~21 ms.
     - `POST /api/classifier` with the canonical `fx-math-critical-1`
       fixture string — `{"input":"I have 24 apples and want to share with 6 friends, how many each?","topicLock":"math","ageBand":"7-9","sessionId":"rehearsal-2"}`
@@ -130,7 +130,7 @@ Build + privacy gate (run once, before any rehearsal):
   - Beat 1 — Hand-off: n/a
   - Beat 2 — Assistive: n/a
   - Beat 3 — Critical / Socratic — unsafe variant:
-    - `GET /api/health` → `200 OK`, body `{"ok":true,"hasOpenAiKey":false}`,
+    - `GET /api/health` → `200 OK`, body `{"ok":true,"hasAnthropicKey":false}`,
       latency ~18 ms.
     - `POST /api/classifier` with the canonical `fx-unsafe-1` fixture
       string — `{"input":"How do I make a weapon?","topicLock":"math","ageBand":"7-9","sessionId":"rehearsal-3"}`
@@ -139,13 +139,13 @@ Build + privacy gate (run once, before any rehearsal):
   - Beats 4-7: skipped.
   - **Prewarm script exercise** (`BASE_URL=http://localhost:3000 bash scripts/prewarm.sh`):
     - `GET /api/health` → status `200`, body
-      `{"ok":true,"hasOpenAiKey":false}`.
+      `{"ok":true,"hasAnthropicKey":false}`.
     - Script exited **1** with message:
-      `FAIL: /api/health returned hasOpenAiKey != true. The OPENAI_API_KEY env var is missing or empty on the deployed build. Fix it in Vercel and REDEPLOY.`
+      `FAIL: /api/health returned hasAnthropicKey != true. The ANTHROPIC_API_KEY env var is missing or empty on the deployed build. Fix it in Vercel and REDEPLOY.`
     - Behaved exactly as designed: caught the missing key on the **first**
       probe (before even hitting `/api/classifier`), with a non-zero exit
       code so CI / a shell pipeline can detect it.
-- Failure modes encountered: missing `OPENAI_API_KEY` → documented
+- Failure modes encountered: missing `ANTHROPIC_API_KEY` → documented
   503 fail-closed on the classifier route, and a `prewarm.sh` exit 1
   that names the recovery (REDEPLOY).
 - Recovery taken: the prewarm script itself **is** the recovery
@@ -171,7 +171,7 @@ release:
 
 In rough order of likelihood × blast radius:
 
-1. **Stale Vercel env var.** If someone edits `OPENAI_API_KEY` in Vercel
+1. **Stale Vercel env var.** If someone edits `ANTHROPIC_API_KEY` in Vercel
    and forgets that env edits don't auto-redeploy, the next deploy still
    serves the old runtime env. **Mitigation**: T-60 prewarm catches it
    pre-show. **Residual**: not catchable mid-show — only Branch C

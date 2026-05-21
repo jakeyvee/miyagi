@@ -27,8 +27,13 @@ export type SessionEvent =
       state: TreeState;
     })
   | (BaseSessionEvent & {
+      /** Kid tapped "Give me answer now" — bypasses the Socratic loop at a
+       * tree cost. Caller still streams the assistive answer afterwards. */
+      type: "kid_demanded_answer";
+    })
+  | (BaseSessionEvent & {
       type: "session_ended";
-      reason: "time_window_closed" | "kid_exited" | "parent_exited";
+      reason: "kid_exited" | "parent_exited";
     });
 
 export type SessionEventType = SessionEvent["type"];

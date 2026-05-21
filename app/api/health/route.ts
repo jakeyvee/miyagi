@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
  * to confirm:
  *
  *   1. The server is up and Next.js is routing API requests.
- *   2. `OPENAI_API_KEY` is configured in the runtime env.
+ *   2. `ANTHROPIC_API_KEY` is configured in the runtime env.
  *
  * The key VALUE is never returned — only a boolean indicating presence. The
  * classifier route uses `getServerEnv()` from `@/lib/server/env`, which throws
@@ -22,16 +22,16 @@ export const dynamic = "force-dynamic";
 
 interface HealthResponse {
   ok: true;
-  hasOpenAiKey: boolean;
+  hasAnthropicKey: boolean;
 }
 
 export function GET(): NextResponse<HealthResponse> {
   // Read process.env directly here — we intentionally do NOT call
   // getServerEnv() because that throws when the key is missing, and the whole
   // point of this probe is to report missingness without 500ing.
-  const hasOpenAiKey =
-    typeof process.env.OPENAI_API_KEY === "string" &&
-    process.env.OPENAI_API_KEY.length > 0;
+  const hasAnthropicKey =
+    typeof process.env.ANTHROPIC_API_KEY === "string" &&
+    process.env.ANTHROPIC_API_KEY.length > 0;
 
-  return NextResponse.json({ ok: true, hasOpenAiKey });
+  return NextResponse.json({ ok: true, hasAnthropicKey });
 }

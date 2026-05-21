@@ -30,10 +30,6 @@ function hasWindow(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
 
-function isHHMM(value: unknown): value is string {
-  return typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
-}
-
 function isStoredPin(value: unknown): value is StoredPin {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Record<string, unknown>;
@@ -50,9 +46,7 @@ function isParentSettings(value: unknown): value is ParentSettings {
   const candidate = value as Record<string, unknown>;
   if (typeof candidate.topicLock !== "string") return false;
   if (!isAgeBand(candidate.ageBand)) return false;
-  const window = candidate.studyTimeWindow as Record<string, unknown> | undefined;
-  if (!window || typeof window !== "object") return false;
-  return isHHMM(window.startHHMM) && isHHMM(window.endHHMM);
+  return true;
 }
 
 export function readParentLocalState(): ParentLocalState {

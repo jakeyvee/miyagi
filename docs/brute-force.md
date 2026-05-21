@@ -65,7 +65,7 @@ Tuning notes:
 The kid's input text is sent to OpenAI for embedding. This is the same
 trust boundary as the existing classifier path — no new permission surface
 is introduced, and the OpenAI SDK is only ever imported from
-`lib/server/openai.ts`. Embeddings stay in process memory (per-request
+`lib/server/anthropic.ts`. Embeddings stay in process memory (per-request
 hash-keyed cache) and are not persisted.
 
 ### Compatibility

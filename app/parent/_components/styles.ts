@@ -1,100 +1,137 @@
 import type { CSSProperties } from "react";
 
+/**
+ * Aura design tokens projected as React inline styles. The CSS variables are
+ * declared in app/globals.css; this module is just the typed shorthand that
+ * the parent components reach for so the entire surface stays consistent.
+ */
+
 export const screen: CSSProperties = {
   minHeight: "100dvh",
   display: "flex",
   flexDirection: "column",
-  padding: "1.5rem",
-  gap: "1rem",
-  maxWidth: "30rem",
+  padding: "var(--space-6) var(--space-5)",
+  gap: "var(--space-5)",
+  maxWidth: "32rem",
   margin: "0 auto",
   width: "100%",
+  background: "var(--color-background)",
+  color: "var(--color-text-primary)",
 };
 
 export const heading: CSSProperties = {
   margin: 0,
-  fontSize: "1.5rem",
+  fontFamily: "var(--font-display)",
+  fontWeight: 500,
+  fontSize: "clamp(32px, 9vw, 44px)",
+  lineHeight: 1.05,
+  color: "var(--color-text-primary)",
+  letterSpacing: "-0.005em",
 };
 
 export const subheading: CSSProperties = {
   margin: 0,
-  color: "#555",
-  fontSize: "0.9375rem",
-  lineHeight: 1.4,
+  color: "var(--color-text-secondary)",
+  fontSize: "15px",
+  lineHeight: 1.5,
 };
 
 export const fieldLabel: CSSProperties = {
   display: "flex",
   flexDirection: "column",
-  gap: "0.375rem",
-  fontSize: "0.875rem",
-  color: "#333",
+  gap: "var(--space-2)",
+  fontFamily: "var(--font-mono)",
+  fontSize: "11px",
+  fontWeight: 600,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+  color: "var(--color-text-secondary)",
 };
 
 export const input: CSSProperties = {
   appearance: "none",
   WebkitAppearance: "none",
-  border: "1px solid #ccc",
-  borderRadius: "0.5rem",
-  padding: "0.75rem 0.875rem",
-  fontSize: "1rem",
-  background: "#fff",
-  color: "#111",
+  border: "1px solid var(--color-border)",
+  borderRadius: "var(--radius-control)",
+  padding: "14px 16px",
+  fontSize: "16px",
+  fontFamily: "var(--font-body)",
+  background: "var(--color-secondary)",
+  color: "var(--color-text-primary)",
   width: "100%",
+  outline: "none",
+  transition: "border-color 200ms var(--ease-out), box-shadow 200ms var(--ease-out)",
 };
 
 export const primaryButton: CSSProperties = {
   appearance: "none",
   border: "none",
-  background: "#111",
-  color: "#fff",
-  borderRadius: "0.75rem",
-  padding: "0.875rem 1rem",
-  fontSize: "1rem",
+  background: "var(--color-primary)",
+  color: "var(--color-secondary)",
+  borderRadius: "var(--radius-pill)",
+  padding: "14px 20px",
+  fontSize: "15px",
+  fontWeight: 500,
+  letterSpacing: "0.01em",
   cursor: "pointer",
   width: "100%",
+  minHeight: "48px",
+  boxShadow: "var(--shadow-card)",
+  transition: "transform 200ms var(--ease-out), box-shadow 200ms var(--ease-out)",
 };
 
 export const secondaryButton: CSSProperties = {
   appearance: "none",
-  background: "#fff",
-  color: "#111",
-  border: "1px solid #111",
-  borderRadius: "0.75rem",
-  padding: "0.875rem 1rem",
-  fontSize: "1rem",
+  background: "var(--color-secondary)",
+  color: "var(--color-primary)",
+  border: "1px solid var(--color-border-strong)",
+  borderRadius: "var(--radius-pill)",
+  padding: "14px 20px",
+  fontSize: "15px",
+  fontWeight: 500,
   cursor: "pointer",
   width: "100%",
+  minHeight: "48px",
   textDecoration: "none",
   textAlign: "center",
+  transition: "background 200ms var(--ease-out)",
 };
 
 export const errorText: CSSProperties = {
-  color: "#a40000",
-  fontSize: "0.875rem",
+  color: "var(--color-danger)",
+  fontSize: "13px",
   margin: 0,
+  fontWeight: 500,
 };
 
 export const noteText: CSSProperties = {
-  color: "#666",
-  fontSize: "0.8125rem",
+  color: "var(--color-text-secondary)",
+  fontSize: "13px",
   margin: 0,
-  lineHeight: 1.4,
+  lineHeight: 1.5,
 };
 
 export const segmentedGroup: CSSProperties = {
   display: "flex",
-  gap: "0.5rem",
+  gap: "var(--space-2)",
+  background: "var(--color-surface-soft)",
+  padding: "4px",
+  borderRadius: "var(--radius-pill)",
+  border: "1px solid var(--color-border)",
 };
 
 export const segmentedButton = (active: boolean): CSSProperties => ({
   flex: 1,
   appearance: "none",
-  border: active ? "2px solid #111" : "1px solid #ccc",
-  background: active ? "#111" : "#fff",
-  color: active ? "#fff" : "#111",
-  borderRadius: "0.5rem",
-  padding: "0.625rem 0.5rem",
-  fontSize: "0.9375rem",
+  border: "none",
+  background: active ? "var(--color-primary)" : "transparent",
+  color: active ? "var(--color-secondary)" : "var(--color-text-primary)",
+  borderRadius: "var(--radius-pill)",
+  padding: "10px 14px",
+  fontSize: "14px",
+  fontFamily: "var(--font-mono)",
+  fontWeight: 600,
+  letterSpacing: "0.04em",
   cursor: "pointer",
+  transition: "background 200ms var(--ease-out), color 200ms var(--ease-out)",
 });

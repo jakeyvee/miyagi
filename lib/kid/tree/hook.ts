@@ -130,6 +130,17 @@ export function useTreeState(): UseTreeStateResult {
           return;
         }
 
+        case "kid_demanded_answer": {
+          // The "Give me answer now" bypass — shrink the tree and count it
+          // as a brute-force attempt. Clear the streak tracking; the next
+          // critical verdict will start a fresh detection window.
+          dispatch({ type: "kid_demanded_answer" });
+          ctx.pendingCritical = false;
+          ctx.submittedSincePending = false;
+          ctx.engagedSincePending = true;
+          return;
+        }
+
         // session_started or future-added event types: harmless no-op.
         default:
           return;

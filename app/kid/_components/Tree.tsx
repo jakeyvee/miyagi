@@ -7,33 +7,59 @@
  * (KidStudy's `data-slot="tree"` is a fixed-height flex item).
  *
  * Transitions: simple CSS opacity + transform fade-cross between stages so
- * we never trigger layout work in the parent slot. Reduced-motion users get
+ * we never trigger layout work in the parent slot. When the thriving stage
+ * advances (assistive completion), a brief grow-burst animation plays —
+ * scale-pulse plus a golden glow plus floating sparkles — so the demo
+ * audience can see the reward land. Stage shrinks (e.g. "give me answer
+ * now") trigger a shrink-pulse with a red flash. Reduced-motion users get
  * an instant swap.
  */
 
-import type { CSSProperties, ReactElement } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactElement,
+} from "react";
 import type { TreeState } from "@/lib/contracts";
 import { useTreeState } from "@/lib/kid/tree/hook";
 
 const VIEWBOX = "0 0 200 240";
 
+const STAGE_ORDER: TreeState[] = [
+  "seed",
+  "sprout",
+  "sapling",
+  "tree",
+  "blooming",
+];
+
+/**
+ * Aura-anchored tree palette.
+ * Primary forest = #2C3B31 (trunks + deep canopy)
+ * Accent sage   = #7A9E7E (live leaves)
+ * Soft sage     = #B3CDB5 (lit canopy highlights)
+ * Soil          = warm taupe so the dark trunk still reads against the
+ *                 cream feature-card background.
+ */
 const PALETTE = {
-  sky: "#eaf3ec",
-  soil: "#7a5a3a",
-  soilDark: "#5b4128",
-  trunk: "#6b4a2a",
-  trunkLight: "#8a6438",
-  leafDark: "#3f7d3f",
-  leaf: "#5aa15a",
-  leafLight: "#8fc88f",
-  bloom: "#f5a3c7",
-  bloomCore: "#e36ea5",
-  seedShell: "#caa37a",
-  sprout: "#7fbd6a",
+  sky: "transparent",
+  soil: "#9c8268",
+  soilDark: "#76624c",
+  trunk: "#2c3b31",
+  trunkLight: "#4f6452",
+  leafDark: "#3f5e43",
+  leaf: "#7a9e7e",
+  leafLight: "#b3cdb5",
+  bloom: "#f6c8cc",
+  bloomCore: "#e89aa1",
+  seedShell: "#b3947a",
+  sprout: "#7a9e7e",
   wiltLeaf: "#c9b463",
-  wiltTrunk: "#7b6336",
-  deadTrunk: "#4a3f33",
-  deadLeaf: "#6e6457",
+  wiltTrunk: "#76624c",
+  deadTrunk: "#3a3a36",
+  deadLeaf: "#7a7a72",
 };
 
 const containerStyle: CSSProperties = {
@@ -62,18 +88,52 @@ const svgStyle: CSSProperties = {
   maxHeight: "100%",
   display: "block",
   transition: "transform 400ms ease, opacity 400ms ease",
+  transformOrigin: "50% 95%",
 };
 
 const statusStyle: CSSProperties = {
   position: "absolute",
-  bottom: "0.5rem",
+  bottom: "0.625rem",
   left: 0,
   right: 0,
   textAlign: "center",
-  fontSize: "0.75rem",
-  color: "#516a55",
+  fontFamily: "var(--font-mono)",
+  fontSize: "11px",
+  fontWeight: 600,
+  letterSpacing: "0.12em",
+  textTransform: "uppercase",
+  color: "var(--color-text-secondary)",
   pointerEvents: "none",
-  letterSpacing: "0.04em",
+};
+
+const burstLabelStyle: CSSProperties = {
+  position: "absolute",
+  top: "10%",
+  left: 0,
+  right: 0,
+  textAlign: "center",
+  fontFamily: "var(--font-display)",
+  fontStyle: "italic",
+  fontSize: "2rem",
+  fontWeight: 600,
+  color: "var(--color-accent)",
+  textShadow: "0 1px 8px rgba(255,255,255,0.9)",
+  pointerEvents: "none",
+  animation: "kidQuestGrowFloat 1000ms ease-out forwards",
+};
+
+const shrinkLabelStyle: CSSProperties = {
+  ...burstLabelStyle,
+  color: "var(--color-danger)",
+};
+
+const sparkleContainerStyle: CSSProperties = {
+  position: "absolute",
+  inset: 0,
+  pointerEvents: "none",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
 };
 
 interface TreeProps {
@@ -83,22 +143,84 @@ interface TreeProps {
   forceDead?: boolean;
 }
 
+type BurstKind = "grow" | "shrink" | null;
+
+const BURST_DURATION_MS = 1000;
+
+function stageIndex(state: TreeState): number {
+  const idx = STAGE_ORDER.indexOf(state);
+  return idx < 0 ? 0 : idx;
+}
+
 export function Tree(props: TreeProps = {}): ReactElement {
   const live = useTreeState();
   const state = props.forceState ?? live.state;
   const isWilted = props.forceWilted ?? live.isWilted;
   const isDead = props.forceDead ?? live.isDead;
 
+  const [burst, setBurst] = useState<BurstKind>(null);
+  const burstKeyRef = useRef(0);
+  const [burstKey, setBurstKey] = useState(0);
+  const prevStateRef = useRef<TreeState>(state);
+
+  useEffect(() => {
+    const prev = prevStateRef.current;
+    if (state !== prev) {
+      const nextIdx = stageIndex(state);
+      const prevIdx = stageIndex(prev);
+      if (!isDead && !isWilted && nextIdx > prevIdx) {
+        burstKeyRef.current += 1;
+        setBurstKey(burstKeyRef.current);
+        setBurst("grow");
+      } else if (nextIdx < prevIdx || isWilted || isDead) {
+        burstKeyRef.current += 1;
+        setBurstKey(burstKeyRef.current);
+        setBurst("shrink");
+      }
+      prevStateRef.current = state;
+    }
+    if (burst === null) return;
+    const timer = window.setTimeout(() => setBurst(null), BURST_DURATION_MS);
+    return () => window.clearTimeout(timer);
+  }, [state, isDead, isWilted, burst]);
+
   // Wilt & dead are modifiers layered on top of the current thriving stage.
   // Dead supersedes wilt visually.
+  const baseFilter = isDead
+    ? "grayscale(85%) brightness(0.7)"
+    : isWilted
+      ? "sepia(45%) saturate(70%) brightness(0.95)"
+      : "none";
+  const burstFilter =
+    burst === "grow"
+      ? "drop-shadow(0 0 18px rgba(250, 204, 21, 0.9)) drop-shadow(0 0 36px rgba(110, 231, 110, 0.55))"
+      : burst === "shrink"
+        ? "drop-shadow(0 0 14px rgba(220, 60, 60, 0.75))"
+        : "none";
+
   const wrapStyle: CSSProperties = {
     ...svgWrapStyle,
-    filter: isDead
-      ? "grayscale(85%) brightness(0.7)"
-      : isWilted
-        ? "sepia(45%) saturate(70%) brightness(0.95)"
-        : "none",
+    filter:
+      burst === null
+        ? baseFilter
+        : baseFilter === "none"
+          ? burstFilter
+          : `${baseFilter} ${burstFilter}`,
     opacity: isDead ? 0.85 : 1,
+    transition:
+      burst === null
+        ? svgWrapStyle.transition
+        : "filter 200ms ease-out, opacity 400ms ease",
+  };
+
+  const stageSvgStyle: CSSProperties = {
+    ...svgStyle,
+    animation:
+      burst === "grow"
+        ? `kidQuestGrowPulse ${BURST_DURATION_MS}ms cubic-bezier(.2,1.4,.4,1) both`
+        : burst === "shrink"
+          ? `kidQuestShrinkPulse ${BURST_DURATION_MS}ms ease-out both`
+          : undefined,
   };
 
   const label = describe(state, isWilted, isDead);
@@ -112,21 +234,105 @@ export function Tree(props: TreeProps = {}): ReactElement {
       data-tree-wilted={isWilted ? "1" : "0"}
       data-tree-dead={isDead ? "1" : "0"}
     >
+      <TreeKeyframes />
       <div style={wrapStyle}>
         <svg
+          key={`${state}-${burstKey}`}
           viewBox={VIEWBOX}
           xmlns="http://www.w3.org/2000/svg"
-          style={svgStyle}
+          style={stageSvgStyle}
           aria-hidden="true"
         >
           <Ground />
           <Stage state={state} isDead={isDead} isWilted={isWilted} />
         </svg>
       </div>
+      {burst === "grow" ? (
+        <>
+          <span key={`grow-${burstKey}`} style={burstLabelStyle} aria-hidden>
+            +1 ✨
+          </span>
+          <div
+            key={`sparkles-${burstKey}`}
+            style={sparkleContainerStyle}
+            aria-hidden
+          >
+            {SPARKLE_OFFSETS.map((offset, i) => (
+              <span
+                key={i}
+                style={{
+                  position: "absolute",
+                  fontSize: "1rem",
+                  left: `calc(50% + ${offset.x}px)`,
+                  top: `calc(50% + ${offset.y}px)`,
+                  animation: `kidQuestSparkle ${BURST_DURATION_MS}ms ease-out forwards`,
+                  animationDelay: `${i * 40}ms`,
+                  opacity: 0,
+                }}
+              >
+                ✦
+              </span>
+            ))}
+          </div>
+        </>
+      ) : null}
+      {burst === "shrink" ? (
+        <span key={`shrink-${burstKey}`} style={shrinkLabelStyle} aria-hidden>
+          −1
+        </span>
+      ) : null}
       <span style={statusStyle} aria-hidden="true">
         {isDead ? "withered" : isWilted ? "wilting" : state}
       </span>
     </div>
+  );
+}
+
+const SPARKLE_OFFSETS = [
+  { x: -60, y: -30 },
+  { x: 60, y: -30 },
+  { x: -40, y: -60 },
+  { x: 40, y: -60 },
+  { x: 0, y: -80 },
+  { x: -80, y: 10 },
+  { x: 80, y: 10 },
+];
+
+/**
+ * Injects @keyframes once per page. Inline styles can't carry keyframes,
+ * and the project intentionally avoids global CSS / styled-jsx, so a small
+ * `<style>` tag rendered alongside the tree is the lightest option.
+ */
+function TreeKeyframes(): ReactElement {
+  return (
+    <style>
+      {`
+@keyframes kidQuestGrowPulse {
+  0%   { transform: scale(1)   translateY(0);    }
+  35%  { transform: scale(1.18) translateY(-6px); }
+  60%  { transform: scale(1.08) translateY(-2px); }
+  100% { transform: scale(1)   translateY(0);    }
+}
+@keyframes kidQuestShrinkPulse {
+  0%   { transform: scale(1) translateY(0);    }
+  25%  { transform: scale(0.92) translateY(4px); }
+  100% { transform: scale(1) translateY(0);    }
+}
+@keyframes kidQuestGrowFloat {
+  0%   { transform: translateY(8px); opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: translateY(-44px); opacity: 0; }
+}
+@keyframes kidQuestSparkle {
+  0%   { transform: scale(0.4); opacity: 0; }
+  30%  { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1.4) translateY(-24px); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; }
+}
+      `}
+    </style>
   );
 }
 

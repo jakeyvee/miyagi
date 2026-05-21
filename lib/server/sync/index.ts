@@ -16,9 +16,9 @@ import { supabaseAdapter } from "./supabase-adapter";
  */
 export function getSyncAdapter(): SyncAdapter {
   // Read via the canonical env reader. This intentionally calls
-  // getServerEnv() (which throws on missing OPENAI_API_KEY) because in
+  // getServerEnv() (which throws on missing ANTHROPIC_API_KEY) because in
   // every environment where we'd want sync, we'd also want the
-  // classifier — and we'd rather surface the missing OpenAI key here
+  // classifier — and we'd rather surface the missing Anthropic key here
   // than five layers deeper.
   const env = getServerEnv();
   const backend = env.SYNC_BACKEND ?? "memory";

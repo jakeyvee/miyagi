@@ -6,10 +6,8 @@ import {
   VERDICTS,
   type ClassifierRequest,
   type ClassifierResponse,
-  type ReaskResult,
 } from "@/lib/contracts";
-import { evaluateCriticalReask } from "@/lib/server/brute-force";
-import { getOpenAI } from "@/lib/server/openai";
+import { getAnthropic } from "@/lib/server/anthropic";
 
 /**
  * POST /api/classifier
@@ -24,17 +22,38 @@ import { getOpenAI } from "@/lib/server/openai";
  *   - `off_topic` — outside the parent-set topic lock. Caller refuses.
  *   - `unsafe`    — adult content, dangerous instructions. Caller refuses.
  *
- * The OpenAI SDK is only ever imported from this file (via
- * `@/lib/server/openai`). API keys never reach the client bundle.
+ * The Anthropic SDK is only ever imported from this file (via
+ * `@/lib/server/anthropic`). API keys never reach the client bundle.
  */
 
-const MODEL = "gpt-4o-mini";
+const MODEL = "claude-haiku-4-5-20251001";
 const MAX_INPUT_LENGTH = 2000;
+const MAX_OUTPUT_TOKENS = 256;
 
-interface ClassifierModelOutput {
-  verdict: string;
-  confidence: number;
-}
+const CLASSIFY_TOOL = {
+  name: "record_classification",
+  description:
+    "Record the classification verdict and confidence for the kid's input.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      verdict: {
+        type: "string",
+        enum: [...VERDICTS],
+        description:
+          "One of: assistive, critical, off_topic, unsafe (see system prompt).",
+      },
+      confidence: {
+        type: "number",
+        minimum: 0,
+        maximum: 1,
+        description: "Calibration confidence in [0,1].",
+      },
+    },
+    required: ["verdict", "confidence"],
+    additionalProperties: false,
+  },
+};
 
 function buildSystemPrompt(topicLock: string, ageBand: string): string {
   return [
@@ -61,33 +80,9 @@ function buildSystemPrompt(topicLock: string, ageBand: string): string {
     "Safety beats topic: classify as unsafe even if the request also happens",
     "to be off-topic.",
     "",
-    "Respond with a JSON object EXACTLY of the shape:",
-    '  {"verdict": "<one of: assistive | critical | off_topic | unsafe>",',
-    '   "confidence": <number between 0 and 1>}',
-    "Do not include any other keys, explanations, or prose.",
+    "Call the `record_classification` tool with exactly one verdict and a",
+    "confidence in [0,1]. Do not respond in prose.",
   ].join("\n");
-}
-
-function parseClassifierOutput(raw: string): ClassifierResponse | null {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return null;
-  }
-  if (!parsed || typeof parsed !== "object") return null;
-  const candidate = parsed as Partial<ClassifierModelOutput>;
-  if (!isVerdict(candidate.verdict)) return null;
-  const confidence = candidate.confidence;
-  if (
-    typeof confidence !== "number" ||
-    Number.isNaN(confidence) ||
-    confidence < 0 ||
-    confidence > 1
-  ) {
-    return null;
-  }
-  return { verdict: candidate.verdict, confidence };
 }
 
 function isValidRequestBody(value: unknown): value is ClassifierRequest {
@@ -106,6 +101,22 @@ function isValidRequestBody(value: unknown): value is ClassifierRequest {
   return true;
 }
 
+function extractToolResult(content: readonly unknown[]): ClassifierResponse | null {
+  for (const raw of content) {
+    if (!raw || typeof raw !== "object") continue;
+    const block = raw as Record<string, unknown>;
+    if (block.type !== "tool_use") continue;
+    if (block.name !== CLASSIFY_TOOL.name) continue;
+    const input = block.input as Partial<ClassifierResponse> | undefined;
+    if (!input || typeof input !== "object") continue;
+    if (!isVerdict(input.verdict)) continue;
+    const c = input.confidence;
+    if (typeof c !== "number" || Number.isNaN(c) || c < 0 || c > 1) continue;
+    return { verdict: input.verdict, confidence: c };
+  }
+  return null;
+}
+
 export async function POST(
   request: Request,
 ): Promise<NextResponse<ClassifierResponse | { error: string }>> {
@@ -120,13 +131,13 @@ export async function POST(
     return NextResponse.json({ error: "invalid_request" }, { status: 400 });
   }
 
-  const { input, topicLock, ageBand, sessionId } = body;
+  const { input, topicLock, ageBand } = body;
 
-  let openai;
+  let anthropic;
   try {
-    openai = getOpenAI();
+    anthropic = getAnthropic();
   } catch {
-    // getServerEnv() throws when OPENAI_API_KEY is missing — fail closed so
+    // getServerEnv() throws when ANTHROPIC_API_KEY is missing — fail closed so
     // the kid surface never silently degrades to "no classifier".
     return NextResponse.json(
       { error: "missing_provider_env" },
@@ -134,56 +145,25 @@ export async function POST(
     );
   }
 
-  let rawContent: string | null;
+  let response;
   try {
-    const completion = await openai.chat.completions.create({
+    response = await anthropic.messages.create({
       model: MODEL,
+      max_tokens: MAX_OUTPUT_TOKENS,
       temperature: 0,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: buildSystemPrompt(topicLock, ageBand) },
-        { role: "user", content: input },
-      ],
+      system: buildSystemPrompt(topicLock, ageBand),
+      tools: [CLASSIFY_TOOL],
+      tool_choice: { type: "tool", name: CLASSIFY_TOOL.name },
+      messages: [{ role: "user", content: input }],
     });
-    rawContent = completion.choices[0]?.message?.content ?? null;
   } catch {
     return NextResponse.json({ error: "classifier_failed" }, { status: 502 });
   }
 
-  if (!rawContent) {
-    return NextResponse.json({ error: "classifier_failed" }, { status: 502 });
-  }
-
-  const result = parseClassifierOutput(rawContent);
+  const result = extractToolResult(response.content);
   if (!result) {
     return NextResponse.json({ error: "classifier_failed" }, { status: 502 });
   }
 
-  // Belt-and-braces: ensure the verdict really is one of the closed set
-  // even if VERDICTS later grows. Keeps the response type honest.
-  void VERDICTS;
-
-  // VOL-190: server-side semantic brute-force detection. Only runs when the
-  // verdict is `critical` AND the caller supplied a `sessionId`. The signal
-  // is advisory — the kid client's tree state machine remains the visual
-  // source of truth (see docs/brute-force.md). Detector failures must not
-  // poison the classifier response, so we surround the call with a guard.
-  let reask: ReaskResult | undefined;
-  if (result.verdict === "critical" && sessionId) {
-    try {
-      const evaluation = await evaluateCriticalReask(sessionId, input);
-      reask = {
-        isReask: evaluation.isReask,
-        consequence: evaluation.consequence,
-        reasksSoFar: evaluation.reasksSoFar,
-      };
-    } catch {
-      // Swallow: brute-force evaluation is advisory. Leave `reask` undefined
-      // so the response is still a valid Phase-1-shaped payload.
-    }
-  }
-
-  return NextResponse.json(reask ? { ...result, reask } : result, {
-    status: 200,
-  });
+  return NextResponse.json(result, { status: 200 });
 }

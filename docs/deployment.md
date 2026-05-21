@@ -34,7 +34,7 @@ In **Project Settings → Environment Variables**, add:
 
 | Name             | Value                            | Environments                       | Type   |
 | ---------------- | -------------------------------- | ---------------------------------- | ------ |
-| `OPENAI_API_KEY` | `sk-...` (from the OpenAI dash)  | Production, Preview, Development   | Secret |
+| `ANTHROPIC_API_KEY` | `sk-ant-...` (from the OpenAI dash)  | Production, Preview, Development   | Secret |
 
 Hard rules:
 
@@ -101,11 +101,11 @@ curl -sS https://<URL>/api/health | jq
 Expected:
 
 ```json
-{ "ok": true, "hasOpenAiKey": true }
+{ "ok": true, "hasAnthropicKey": true }
 ```
 
 - `ok: true` confirms the function is reachable and the runtime booted.
-- `hasOpenAiKey: true` confirms the env var is wired. If it's `false`, go
+- `hasAnthropicKey: true` confirms the env var is wired. If it's `false`, go
   back to [1b](#1b-configure-env-vars), re-save, and **redeploy** (Vercel does
   not auto-redeploy on env changes).
 - The actual key is **never** in the response.
@@ -138,7 +138,7 @@ remote inspector), and run in the console:
 fetch('/api/health').then(r => r.json()).then(console.log);
 ```
 
-Expected: `{ ok: true, hasOpenAiKey: true }`. This catches CSP or routing
+Expected: `{ ok: true, hasAnthropicKey: true }`. This catches CSP or routing
 issues a `curl` test would miss.
 
 ---
@@ -174,7 +174,7 @@ If a tester is still seeing stale content after a redeploy:
 | ------------------ | --------------------------------------- | ------------------------------------- |
 | Trigger            | Push to any non-main branch, or any PR  | Push to `main`                        |
 | URL                | `kid-quest-<branch>-<owner>.vercel.app` | Project's production domain           |
-| Env vars           | Same `OPENAI_API_KEY` (per 1b)          | Same `OPENAI_API_KEY`                 |
+| Env vars           | Same `ANTHROPIC_API_KEY` (per 1b)          | Same `ANTHROPIC_API_KEY`                 |
 | Indexable          | `x-robots-tag: noindex` (Vercel default)| Indexable (no robots tag)             |
 | Recommended use    | Share demo links, smoke-test branches   | The link you give to a stakeholder    |
 
@@ -185,10 +185,10 @@ no separate staging database or feature flag system to worry about.
 
 ## 6. Fail-closed behavior
 
-`lib/server/env.ts` throws if `OPENAI_API_KEY` is unset:
+`lib/server/env.ts` throws if `ANTHROPIC_API_KEY` is unset:
 
 ```
-OPENAI_API_KEY is not set. Copy .env.example to .env.local and fill it in.
+ANTHROPIC_API_KEY is not set. Copy .env.example to .env.local and fill it in.
 ```
 
 What this means in production:
@@ -200,10 +200,10 @@ What this means in production:
   wired in a later ticket). A missing key surfaces as a 500 with the message
   above in the function logs. The browser sees a generic 500.
 - The **health route** does **not** call `getServerEnv()`. It checks
-  `process.env.OPENAI_API_KEY` directly so it can report `hasOpenAiKey:
+  `process.env.ANTHROPIC_API_KEY` directly so it can report `hasAnthropicKey:
   false` without crashing. Use this as the cheap probe.
 
-If `hasOpenAiKey` is `false` on `/api/health` after a deploy, the rest of the
+If `hasAnthropicKey` is `false` on `/api/health` after a deploy, the rest of the
 app is broken in the same way. Fix the env var and redeploy before doing
 anything else.
 

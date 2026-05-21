@@ -52,6 +52,7 @@ export type TreeReducerEvent =
   | { type: "assistive_completed" }
   | { type: "kid_submitted_assistive" }
   | { type: "kid_submitted_critical" }
+  | { type: "kid_demanded_answer" }
   | { type: "kid_engaged_socratic" }
   | { type: "session_ended" };
 
@@ -70,10 +71,17 @@ export const WILT_THRESHOLD = 2;
 /** Death threshold — three consecutive brute-force critical attempts. */
 export const DEAD_THRESHOLD = 3;
 
+/**
+ * Demo starts with a real-looking tree so the wilt/grow contrast lands on
+ * stage instead of starting from a barely-visible seed. The kid can still
+ * grow one stage to "blooming" via assistive completions.
+ */
+const INITIAL_STAGE: ThrivingStage = 3;
+
 export function initialTreeState(): TreeStateModel {
   return {
-    state: STAGE_TO_STATE[0],
-    thrivingStage: 0,
+    state: STAGE_TO_STATE[INITIAL_STAGE],
+    thrivingStage: INITIAL_STAGE,
     bruteForceCount: 0,
     isDead: false,
     isWilted: false,
@@ -134,6 +142,24 @@ export function reduceTree(
       }
       return {
         ...prev,
+        bruteForceCount: nextCount,
+        isWilted: nextWilted,
+        isDead: nextDead,
+      };
+    }
+
+    case "kid_demanded_answer": {
+      // "Give me answer now" press — shrinks the tree by one stage AND counts
+      // as a brute-force attempt against the same thresholds. The visible
+      // shrink is the immediate punishment; wilt/death cascade on repeat.
+      const nextStage = capStage(prev.thrivingStage - 1);
+      const nextCount = prev.bruteForceCount + 1;
+      const nextWilted = prev.isWilted || nextCount >= WILT_THRESHOLD;
+      const nextDead = nextCount >= DEAD_THRESHOLD;
+      return {
+        ...prev,
+        state: STAGE_TO_STATE[nextStage],
+        thrivingStage: nextStage,
         bruteForceCount: nextCount,
         isWilted: nextWilted,
         isDead: nextDead,

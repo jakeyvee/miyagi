@@ -6,9 +6,10 @@ import {
   type SocraticRequest,
   type SocraticTurn,
 } from "@/lib/contracts";
-import { getOpenAI } from "@/lib/server/openai";
+import { getAnthropic } from "@/lib/server/anthropic";
 
-const MODEL = "gpt-4o-mini";
+const MODEL = "claude-haiku-4-5-20251001";
+const MAX_OUTPUT_TOKENS = 256;
 const MIN_INPUT_LEN = 1;
 const MAX_INPUT_LEN = 2000;
 
@@ -41,9 +42,9 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ capReached: true }, { status: 200 });
   }
 
-  let openai;
+  let anthropic;
   try {
-    openai = getOpenAI();
+    anthropic = getAnthropic();
   } catch {
     return NextResponse.json(
       { error: "missing_provider_env" },
@@ -55,23 +56,33 @@ export async function POST(request: Request): Promise<Response> {
     ? buildHintSystemPrompt(body.ageBand, body.topicLock)
     : buildSocraticSystemPrompt(body.ageBand, body.topicLock);
 
-  const messages: Array<{
-    role: "system" | "user" | "assistant";
-    content: string;
-  }> = [{ role: "system", content: systemPrompt }];
+  // Anthropic Messages API requires alternating user/assistant turns starting
+  // with user. Collapse adjacent same-role prior turns by concatenation so the
+  // history is always valid, then append the new kid turn (merging with the
+  // last user turn if needed).
+  const messages: Array<{ role: "user" | "assistant"; content: string }> = [];
   for (const turn of body.priorTurns) {
-    messages.push({
-      role: turn.role === "tutor" ? "assistant" : "user",
-      content: turn.text,
-    });
+    const role = turn.role === "tutor" ? "assistant" : "user";
+    const last = messages[messages.length - 1];
+    if (last && last.role === role) {
+      last.content += `\n\n${turn.text}`;
+    } else {
+      messages.push({ role, content: turn.text });
+    }
   }
-  messages.push({ role: "user", content: body.input });
+  const last = messages[messages.length - 1];
+  if (last && last.role === "user") {
+    last.content += `\n\n${body.input}`;
+  } else {
+    messages.push({ role: "user", content: body.input });
+  }
 
   let upstream;
   try {
-    upstream = await openai.chat.completions.create({
+    upstream = anthropic.messages.stream({
       model: MODEL,
-      stream: true,
+      max_tokens: MAX_OUTPUT_TOKENS,
+      system: systemPrompt,
       messages,
     });
   } catch {
@@ -82,10 +93,12 @@ export async function POST(request: Request): Promise<Response> {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
-        for await (const chunk of upstream) {
-          const delta = chunk.choices[0]?.delta?.content;
-          if (delta) {
-            controller.enqueue(encoder.encode(delta));
+        for await (const event of upstream) {
+          if (
+            event.type === "content_block_delta" &&
+            event.delta.type === "text_delta"
+          ) {
+            controller.enqueue(encoder.encode(event.delta.text));
           }
         }
         controller.close();

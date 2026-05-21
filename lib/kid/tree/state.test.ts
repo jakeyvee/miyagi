@@ -25,10 +25,10 @@ function run(events: TreeReducerEvent[]): TreeStateModel {
 }
 
 describe("initialTreeState", () => {
-  it("starts at the seed with zero brute-force and alive", () => {
+  it("starts as a demo-friendly 'tree' (stage 3) with zero brute-force and alive", () => {
     const s = initialTreeState();
-    assert.equal(s.state, "seed");
-    assert.equal(s.thrivingStage, 0);
+    assert.equal(s.state, "tree");
+    assert.equal(s.thrivingStage, 3);
     assert.equal(s.bruteForceCount, 0);
     assert.equal(s.isWilted, false);
     assert.equal(s.isDead, false);
@@ -38,26 +38,12 @@ describe("initialTreeState", () => {
 describe("assistive growth", () => {
   it("advances one stage per assistive completion", () => {
     const s = run([{ type: "assistive_completed" }]);
-    assert.equal(s.state, "sprout");
-    assert.equal(s.thrivingStage, 1);
-  });
-
-  it("reaches blooming after four assistive completions", () => {
-    const s = run([
-      { type: "assistive_completed" },
-      { type: "assistive_completed" },
-      { type: "assistive_completed" },
-      { type: "assistive_completed" },
-    ]);
     assert.equal(s.state, "blooming");
     assert.equal(s.thrivingStage, 4);
   });
 
   it("caps at blooming — additional assistive completions do not overflow", () => {
     const s = run([
-      { type: "assistive_completed" },
-      { type: "assistive_completed" },
-      { type: "assistive_completed" },
       { type: "assistive_completed" },
       { type: "assistive_completed" },
       { type: "assistive_completed" },
@@ -104,21 +90,63 @@ describe("brute-force critical consequences", () => {
     ]);
     const after = reduceTree(dead, { type: "assistive_completed" });
     assert.equal(after, dead, "reducer should return the same reference");
-    assert.equal(after.thrivingStage, 0);
+    assert.equal(after.thrivingStage, dead.thrivingStage);
     assert.equal(after.isDead, true);
   });
 
   it("wilt prevents growth — assistive_completed does not advance a wilted tree", () => {
     const s = run([
-      { type: "assistive_completed" }, // sprout
       { type: "kid_submitted_critical" },
-      { type: "kid_submitted_critical" }, // wilt
-      { type: "assistive_completed" }, // gated
+      { type: "kid_submitted_critical" }, // wilt (still at tree)
+      { type: "assistive_completed" }, // gated by wilt
     ]);
     assert.equal(s.isWilted, true);
-    assert.equal(s.state, "sprout");
-    assert.equal(s.thrivingStage, 1);
+    assert.equal(s.state, "tree");
+    assert.equal(s.thrivingStage, 3);
     assert.equal(s.bruteForceCount, 0, "assistive resets the streak even when wilted");
+  });
+});
+
+describe("kid_demanded_answer (Give me answer now)", () => {
+  it("shrinks the tree by one stage and increments brute-force on first press", () => {
+    const s = run([{ type: "kid_demanded_answer" }]);
+    assert.equal(s.state, "sapling", "tree -> sapling");
+    assert.equal(s.thrivingStage, 2);
+    assert.equal(s.bruteForceCount, 1);
+    assert.equal(s.isWilted, false);
+    assert.equal(s.isDead, false);
+  });
+
+  it(`wilts at ${WILT_THRESHOLD} presses`, () => {
+    const s = run([
+      { type: "kid_demanded_answer" },
+      { type: "kid_demanded_answer" },
+    ]);
+    assert.equal(s.thrivingStage, 1, "shrunk by two stages");
+    assert.equal(s.isWilted, true);
+    assert.equal(s.isDead, false);
+  });
+
+  it(`dies at ${DEAD_THRESHOLD} presses`, () => {
+    const s = run([
+      { type: "kid_demanded_answer" },
+      { type: "kid_demanded_answer" },
+      { type: "kid_demanded_answer" },
+    ]);
+    assert.equal(s.thrivingStage, 0, "shrunk to seed");
+    assert.equal(s.isWilted, true);
+    assert.equal(s.isDead, true);
+  });
+
+  it("further shrinks past seed clamp at 0 (covered by dead-absorbing rule)", () => {
+    const s = run([
+      { type: "kid_demanded_answer" },
+      { type: "kid_demanded_answer" },
+      { type: "kid_demanded_answer" },
+      { type: "kid_demanded_answer" }, // dead absorbs
+    ]);
+    assert.equal(s.thrivingStage, 0);
+    assert.equal(s.isDead, true);
   });
 });
 
@@ -150,7 +178,7 @@ describe("brute-force counter resets", () => {
       { type: "assistive_completed" },
     ]);
     assert.equal(s.bruteForceCount, 0);
-    assert.equal(s.thrivingStage, 1);
+    assert.equal(s.thrivingStage, 4, "tree -> blooming on assistive growth");
   });
 
   it("wilt and death do NOT clear on engagement — modifiers persist", () => {

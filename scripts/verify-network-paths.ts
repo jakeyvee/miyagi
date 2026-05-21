@@ -6,10 +6,10 @@
  * `/api/*` paths.
  *
  * Fails (exit 1) if any source file under `app/**` or `lib/**` references a
- * direct OpenAI URL (e.g. `https://api.openai.com/...`) outside `app/api/**`
- * or `lib/server/**`. Server-only files are technically allowed to call the
- * provider, but in practice they go through the OpenAI SDK in
- * `lib/server/openai.ts`, so a literal URL there is also flagged for review.
+ * direct provider URL (e.g. `https://api.anthropic.com/...`). Server-only
+ * files are technically allowed to call the provider, but in practice they
+ * go through the Anthropic SDK in `lib/server/anthropic.ts`, so a literal
+ * URL there is also flagged for review.
  *
  * Usage:
  *   npm run verify:network
@@ -45,10 +45,13 @@ const SKIP_DIR_NAMES = new Set([
 // Anchored to common OpenAI and OpenAI-compatible base hosts. If you add a
 // new provider, list its base URL here too.
 const FORBIDDEN_URL_RES: { pattern: RegExp; label: string }[] = [
-  { pattern: /https?:\/\/api\.openai\.com/i, label: "api.openai.com" },
   {
     pattern: /https?:\/\/api\.anthropic\.com/i,
-    label: "api.anthropic.com (unsupported provider)",
+    label: "api.anthropic.com (use the SDK in lib/server/anthropic.ts instead)",
+  },
+  {
+    pattern: /https?:\/\/api\.openai\.com/i,
+    label: "api.anthropic.com (unsupported provider — Anthropic only)",
   },
   {
     pattern: /https?:\/\/generativelanguage\.googleapis\.com/i,

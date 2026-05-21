@@ -65,20 +65,20 @@ pre-done is pre-done so the T-10 list is short.
 - [ ] **Pre-warm the deployed build.**
   - [ ] From a laptop terminal, run `BASE_URL=https://<deploy-url> npm run prewarm`
         (wraps `scripts/prewarm.sh`). It expects:
-        - `GET /api/health` → `{"ok":true,"hasOpenAiKey":true}`
+        - `GET /api/health` → `{"ok":true,"hasAnthropicKey":true}`
         - `POST /api/classifier` (tiny payload) → HTTP 2xx
   - [ ] If you can't run a shell, hit `https://<deploy-url>/api/health`
         in Safari on Phone A (note: Safari, **not** the PWA — the PWA
-        won't render the JSON body). Confirm `hasOpenAiKey: true`.
+        won't render the JSON body). Confirm `hasAnthropicKey: true`.
   - [ ] If the prewarm script reports a 503 `missing_provider_env`,
-        **stop**. The `OPENAI_API_KEY` env var is missing or the deploy
+        **stop**. The `ANTHROPIC_API_KEY` env var is missing or the deploy
         is stale. Pivot to the recovery decision tree below before doing
         anything else.
 - [ ] **Privacy gate on `main`.**
   - [ ] Run `npm run verify:privacy:all` on the latest `main` locally,
         OR confirm the CI run for the most recent commit on `main` is
         green. This is the final guard that no microphone API, no
-        `NEXT_PUBLIC_*OPENAI*`, and no `sk-...` literal slipped into the
+        `NEXT_PUBLIC_*OPENAI*`, and no `sk-ant-...` literal slipped into the
         deployed bundle.
 
 ## Pre-show setup (T-10 min)
@@ -247,10 +247,10 @@ branch lists the symptom, the call, and the expected recovery time.
 ### Branch C — `/api/classifier` returns 5xx on the deployed build
 
 - **First check:** `curl https://<deploy-url>/api/health`.
-  - `{"ok":true,"hasOpenAiKey":true}` → the SDK call itself failed
+  - `{"ok":true,"hasAnthropicKey":true}` → the SDK call itself failed
     upstream (OpenAI is having a bad day). Pivot to Phone B (demo mode
     fixtures don't need the network) or to the prerecorded walkthrough.
-  - `{"ok":true,"hasOpenAiKey":false}` → the env var is wiped or the
+  - `{"ok":true,"hasAnthropicKey":false}` → the env var is wiped or the
     deploy is stale. **Redeploy** in Vercel (env-var edits do not
     auto-redeploy — see `docs/deployment.md` § 6). If the show is in
     < 5 min, pivot to Phone B or the prerecorded walkthrough; redeploy

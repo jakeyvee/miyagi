@@ -1,3 +1,62 @@
+/*
+ * Aura design tokens (mobile flow). Anchors the whole app:
+ *  - primary / surface = deep forest #2C3B31 (dark hero cards)
+ *  - accent            = sage         #7A9E7E (growth, active states)
+ *  - background        = #FFFFFF
+ *  - text-primary      = #111827
+ *  - text-secondary    = #4B5563
+ *  - border            = #2C3B31 (used at low opacity for soft dividers)
+ *
+ * Typography: Playfair Display (serif display), Inter (body), JetBrains
+ * Mono (technical labels / pills). Loaded in app/layout.tsx via next/font.
+ *
+ * Spacing & radius follow the 8px base described in design.md.
+ */
+
+:root {
+  --color-primary: #2c3b31;
+  --color-secondary: #ffffff;
+  --color-accent: #7a9e7e;
+  --color-accent-soft: #e3ede4;
+  --color-background: #ffffff;
+  --color-surface: #2c3b31;
+  --color-surface-soft: #f4f6f3;
+  --color-text-primary: #111827;
+  --color-text-secondary: #4b5563;
+  --color-text-on-surface: #f2f4ef;
+  --color-text-on-surface-mute: #b4c0b3;
+  --color-border: rgba(44, 59, 49, 0.14);
+  --color-border-strong: #2c3b31;
+  --color-danger: #b3261e;
+  --color-danger-soft: #fff5f5;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  --radius-card: 8px;
+  --radius-control: 8px;
+  --radius-pill: 9999px;
+
+  --shadow-card: 0 1px 2px rgba(17, 24, 39, 0.04),
+    0 12px 32px -16px rgba(44, 59, 49, 0.18);
+  --shadow-card-hover: 0 2px 4px rgba(17, 24, 39, 0.06),
+    0 20px 44px -18px rgba(44, 59, 49, 0.26);
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    "Courier New", monospace;
+}
+
 *,
 *::before,
 *::after {
@@ -12,14 +71,34 @@ body {
 }
 
 body {
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
-    Cantarell, "Helvetica Neue", sans-serif;
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
-  background: #fafafa;
-  color: #111;
+  background: var(--color-background);
+  color: var(--color-text-primary);
 }
 
 a {
   color: inherit;
+}
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.04;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -24,7 +24,6 @@ import type {
 import { isVerdict, SOCRATIC_TURN_CAP } from "@/lib/contracts";
 import { readParentLocalState } from "@/lib/parent/local-store";
 import { emit } from "@/lib/kid/session-events";
-import { isInsideWindow } from "@/lib/kid/study-window";
 import {
   fakeStreamFromText,
   makeSessionId,
@@ -40,15 +39,16 @@ import type { DemoFixture } from "@/lib/fixtures";
 import {
   echoBubble,
   errorText,
+  giveAnswerButton,
   hintButton,
   inputRow,
   link,
-  lockedBanner,
   noteText,
   refusalBubble,
   responseArea,
   screen,
   screenInner,
+  socraticControls,
   streamPanel,
   submitButton,
   submitButtonDisabled,
@@ -61,7 +61,6 @@ import { Tree } from "./Tree";
 /**
  * Mobile kid study surface. Owns:
  *  - Parent-settings hydration from localStorage.
- *  - Study-window gating (recomputed every 30s while the surface is open).
  *  - Typed-only kid input -> classifier -> route to answer / Socratic /
  *    refusal copy.
  *  - Streaming token render for answer + Socratic responses, including the
@@ -76,7 +75,6 @@ import { Tree } from "./Tree";
  *  - kid_input_submitted
  *  - classifier_verdict
  *  - tree_state_changed (suggestion on successful assistive stream-end)
- *  - session_ended (on parent-set window close)
  *
  * NOTE: No microphone, no provider keys, no audio path. Typed text only.
  */
@@ -108,7 +106,6 @@ type VerdictSource = "none" | "live" | "fixture";
 export function KidStudy() {
   const [phase, setPhase] = useState<LoadPhase>("loading");
   const [settings, setSettings] = useState<ParentSettings | null>(null);
-  const [insideWindow, setInsideWindow] = useState<boolean>(false);
 
   const [draft, setDraft] = useState<string>("");
   const [submittedInput, setSubmittedInput] = useState<string | null>(null);
@@ -131,7 +128,6 @@ export function KidStudy() {
   const sessionIdRef = useRef<string>(makeSessionId());
   const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
-  const windowClosedNotifiedRef = useRef<boolean>(false);
   // Tracks the fixture currently being replayed (if any) so the Socratic
   // hint button can stream its canned hint instead of hitting the route.
   const activeFixtureRef = useRef<DemoFixture | null>(null);
@@ -154,48 +150,15 @@ export function KidStudy() {
       return;
     }
     setSettings(state.settings);
-    setInsideWindow(isInsideWindow(new Date(), state.settings.studyTimeWindow));
     setPhase("ready");
   }, []);
 
-  // 2. Re-check the study window every 30s while the surface is open so the
-  //    kid loses access promptly when the parent's window closes.
+  // 2. Autofocus the input when ready.
   useEffect(() => {
-    if (!settings) return;
-    const tick = () => {
-      const open = isInsideWindow(new Date(), settings.studyTimeWindow);
-      setInsideWindow(open);
-    };
-    tick();
-    const handle = window.setInterval(tick, 30_000);
-    return () => window.clearInterval(handle);
-  }, [settings]);
-
-  // 3. When the window closes, abort any in-flight stream and emit a
-  //    `session_ended` event exactly once per session.
-  useEffect(() => {
-    if (!settings) return;
-    if (insideWindow) {
-      windowClosedNotifiedRef.current = false;
-      return;
-    }
-    if (windowClosedNotifiedRef.current) return;
-    windowClosedNotifiedRef.current = true;
-    abortRef.current?.abort();
-    emit({
-      type: "session_ended",
-      sessionId: sessionIdRef.current,
-      timestampMs: Date.now(),
-      reason: "time_window_closed",
-    });
-  }, [insideWindow, settings]);
-
-  // 4. Autofocus the input when ready and the window is open.
-  useEffect(() => {
-    if (phase === "ready" && insideWindow && !busy) {
+    if (phase === "ready" && !busy) {
       inputRef.current?.focus();
     }
-  }, [phase, insideWindow, busy]);
+  }, [phase, busy]);
 
   const resetForNewSubmission = useCallback(() => {
     abortRef.current?.abort();
@@ -245,6 +208,7 @@ export function KidStudy() {
       input: string,
       activeSettings: ParentSettings,
       signal: AbortSignal,
+      opts?: { suppressGrowth?: boolean },
     ) => {
       const body: AnswerRequest = {
         input,
@@ -264,14 +228,17 @@ export function KidStudy() {
         signal,
         onToken: (chunk) => setStreamText((prev) => prev + chunk),
       });
-      // Suggest a tree state change so VOL-184 can react. We pick "sapling"
-      // as a placeholder mid-state — VOL-184 will compute the real cadence.
-      emit({
-        type: "tree_state_changed",
-        sessionId: sessionIdRef.current,
-        timestampMs: Date.now(),
-        state: "sapling",
-      });
+      // Suggest a tree state change so the tree hook can advance one stage.
+      // Suppressed by the "Give me answer now" bypass, which has already
+      // applied its own (shrink) consequence and must not be cancelled out.
+      if (!opts?.suppressGrowth) {
+        emit({
+          type: "tree_state_changed",
+          sessionId: sessionIdRef.current,
+          timestampMs: Date.now(),
+          state: "sapling",
+        });
+      }
     },
     [],
   );
@@ -453,25 +420,30 @@ export function KidStudy() {
   const handleSubmit = useCallback(
     async (e?: FormEvent) => {
       e?.preventDefault();
-      if (!settings || !insideWindow || busy) return;
+      if (!settings || busy) return;
 
       const trimmed = draft.trim();
       const nonWs = trimmed.replace(/\s+/g, "");
       if (trimmed.length === 0) return;
-      if (nonWs.length < MIN_NON_WHITESPACE) {
-        setErrorMessage("Try a longer question (a few words).");
-        return;
-      }
       if (trimmed.length > MAX_INPUT_CHARS) {
         setErrorMessage("That's a bit too long. Try a shorter question.");
         return;
       }
 
       // If the kid is mid-Socratic loop, this submission is the next "kid"
-      // turn — skip the classifier and feed it straight to /api/socratic
-      // (or to the active fixture's canned tutor turns).
+      // turn — short answers like "8" or "36" are valid here, so the
+      // min-length check does NOT apply. Skip the classifier and feed it
+      // straight to /api/socratic (or the active fixture's canned tutor
+      // turns).
       if (socratic.active && !socratic.capReached) {
         await continueSocratic(trimmed);
+        return;
+      }
+
+      // Fresh question: enforce the min-length rule so an accidental
+      // single keystroke doesn't get classified as a real prompt.
+      if (nonWs.length < MIN_NON_WHITESPACE) {
+        setErrorMessage("Try a longer question (a few words).");
         return;
       }
 
@@ -561,7 +533,7 @@ export function KidStudy() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [draft, settings, insideWindow, busy, socratic, runFixtureFlow],
+    [draft, settings, busy, socratic, runFixtureFlow],
   );
 
   /** Continues a Socratic exchange with a new kid turn. */
@@ -673,6 +645,63 @@ export function KidStudy() {
     [settings, runAnswerStream, runSocraticStream],
   );
 
+  /**
+   * "Give me answer now" — the kid bails out of the Socratic loop. Tree
+   * shrinks one stage and the brute-force counter ticks up (wilt at 2,
+   * dead at 3). Then we still stream the assistive answer to the original
+   * critical question so the kid actually gets the help — at a cost.
+   */
+  const handleGiveMeAnswer = useCallback(async () => {
+    if (!settings || busy) return;
+    const firstKidTurn = socratic.priorTurns.find((t) => t.role === "kid");
+    const input = firstKidTurn?.text ?? submittedInput ?? "";
+    if (!input) return;
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setBusy(true);
+    setErrorMessage(null);
+    setStreamText("");
+
+    emit({
+      type: "kid_demanded_answer",
+      sessionId: sessionIdRef.current,
+      timestampMs: Date.now(),
+    });
+
+    try {
+      const activeFixture = activeFixtureRef.current;
+      if (activeFixture && activeFixture.answer) {
+        // fakeStream doesn't emit a growth event — nothing to suppress here.
+        await runFixtureFakeStream(activeFixture.answer, controller.signal);
+      } else {
+        await runAnswerStream(input, settings, controller.signal, {
+          suppressGrowth: true,
+        });
+      }
+      // End the Socratic loop — the kid took the bypass; there's nothing
+      // left to be Socratic about.
+      setSocratic(EMPTY_SOCRATIC);
+    } catch (cause) {
+      if (!controller.signal.aborted) {
+        setErrorMessage(kidReadableError(cause));
+      }
+    } finally {
+      setBusy(false);
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+      }
+    }
+  }, [
+    settings,
+    busy,
+    socratic.priorTurns,
+    submittedInput,
+    runAnswerStream,
+    runFixtureFakeStream,
+  ]);
+
   /** Hint affordance — calls /api/socratic with wantHint: true. */
   const handleWantHint = useCallback(async () => {
     if (!settings || busy) return;
@@ -748,7 +777,7 @@ export function KidStudy() {
    */
   const triggerStageRecoveryGesture = useCallback(() => {
     if (!demoModeRef.current) return;
-    if (!settings || !insideWindow) return;
+    if (!settings) return;
     if (gestureFiredThisGestureRef.current) return;
     gestureFiredThisGestureRef.current = true;
 
@@ -782,7 +811,7 @@ export function KidStudy() {
         if (abortRef.current === controller) abortRef.current = null;
       }
     })();
-  }, [settings, insideWindow, resetForNewSubmission, runFixtureFlow]);
+  }, [settings, resetForNewSubmission, runFixtureFlow]);
 
   const clearLongPressTimer = useCallback(() => {
     if (longPressTimerRef.current !== null) {
@@ -870,12 +899,14 @@ export function KidStudy() {
   }, [clearLongPressTimer]);
 
   const canSubmit = useMemo(() => {
-    if (!settings || !insideWindow || busy) return false;
-    if (draft.trim().replace(/\s+/g, "").length < MIN_NON_WHITESPACE) {
-      return false;
-    }
-    return true;
-  }, [settings, insideWindow, busy, draft]);
+    if (!settings || busy) return false;
+    const nonWs = draft.trim().replace(/\s+/g, "").length;
+    if (nonWs === 0) return false;
+    // Mid-Socratic replies can be as short as "8" — only the initial
+    // question gets the min-length gate.
+    if (socratic.active && !socratic.capReached) return true;
+    return nonWs >= MIN_NON_WHITESPACE;
+  }, [settings, busy, draft, socratic.active, socratic.capReached]);
 
   if (phase === "loading") {
     return (
@@ -896,7 +927,16 @@ export function KidStudy() {
           <div style={treeSlot} data-slot="tree">
             <Tree />
           </div>
-          <p style={{ ...noteText, fontSize: "1rem", color: "#222" }}>
+          <p
+            style={{
+              ...noteText,
+              fontFamily: "var(--font-display)",
+              fontSize: "20px",
+              fontStyle: "italic",
+              color: "var(--color-text-primary)",
+              textAlign: "center",
+            }}
+          >
             Ask the grown-up to set things up before you start.
           </p>
           <p style={noteText}>
@@ -911,10 +951,10 @@ export function KidStudy() {
 
   const dotColor =
     verdictSource === "live"
-      ? "#1f9d55"
+      ? "var(--color-accent)"
       : verdictSource === "fixture"
         ? "#d97706"
-        : "#bbbbbb";
+        : "var(--color-text-on-surface-mute)";
 
   return (
     <main style={screen}>
@@ -954,18 +994,30 @@ export function KidStudy() {
               />
               <span
                 style={{
-                  fontSize: "0.9375rem",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "11px",
                   fontWeight: 600,
-                  color: "#222",
-                  letterSpacing: "0.01em",
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  color: "var(--color-text-primary)",
                 }}
               >
                 {verdict.verdict}
               </span>
-              <span style={{ color: "#888" }} aria-hidden="true">
+              <span
+                style={{ color: "var(--color-text-on-surface-mute)" }}
+                aria-hidden="true"
+              >
                 ·
               </span>
-              <span style={{ fontSize: "0.9375rem", color: "#444" }}>
+              <span
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "11px",
+                  letterSpacing: "0.08em",
+                  color: "var(--color-text-secondary)",
+                }}
+              >
                 {Math.round(verdict.confidence * 100)}% conf
               </span>
             </>
@@ -982,12 +1034,6 @@ export function KidStudy() {
             />
           )}
         </div>
-
-        {!insideWindow ? (
-          <div style={lockedBanner} role="status">
-            Study time is closed. Come back during your study window.
-          </div>
-        ) : null}
 
         <section style={responseArea} aria-label="Tutor response">
           {submittedInput ? (
@@ -1012,14 +1058,26 @@ export function KidStudy() {
             </div>
           ) : null}
 
-          {socratic.active && socratic.capReached && !busy ? (
-            <button
-              type="button"
-              style={hintButton}
-              onClick={() => void handleWantHint()}
-            >
-              Want a hint?
-            </button>
+          {socratic.active && !busy ? (
+            <div style={socraticControls}>
+              {socratic.capReached ? (
+                <button
+                  type="button"
+                  style={hintButton}
+                  onClick={() => void handleWantHint()}
+                >
+                  Want a hint?
+                </button>
+              ) : null}
+              <button
+                type="button"
+                style={giveAnswerButton}
+                onClick={() => void handleGiveMeAnswer()}
+                aria-label="Give me the answer now — this will shrink your tree"
+              >
+                Give me answer now (−1 🌳)
+              </button>
+            </div>
           ) : null}
 
           {errorMessage ? (
@@ -1043,10 +1101,7 @@ export function KidStudy() {
               if (errorMessage) setErrorMessage(null);
             }}
             onKeyDown={handleKeyDown}
-            placeholder={
-              insideWindow ? "Type your question…" : "Study time is closed"
-            }
-            disabled={!insideWindow}
+            placeholder="Type your question…"
             maxLength={MAX_INPUT_CHARS}
             inputMode="text"
             autoComplete="off"

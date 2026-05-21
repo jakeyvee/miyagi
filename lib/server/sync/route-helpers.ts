@@ -53,18 +53,12 @@ export function isHexString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0 && SALT_HEX_RE.test(value);
 }
 
-function isHHMM(value: unknown): value is string {
-  return typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
-}
-
 export function isParentSettings(value: unknown): value is ParentSettings {
   if (!value || typeof value !== "object") return false;
   const c = value as Record<string, unknown>;
   if (typeof c.topicLock !== "string") return false;
   if (!isAgeBand(c.ageBand)) return false;
-  const w = c.studyTimeWindow as Record<string, unknown> | undefined;
-  if (!w || typeof w !== "object") return false;
-  return isHHMM(w.startHHMM) && isHHMM(w.endHHMM);
+  return true;
 }
 
 export function isClassifierLogRecord(value: unknown): value is ClassifierLogRecord {
