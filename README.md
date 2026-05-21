@@ -151,3 +151,25 @@ CI gate:
 | `npm run verify:network`       | no direct provider URLs (`api.openai.com` etc.) in `app/**` or `lib/**`. |
 | `npm run verify:bundle`        | greps `.next/static/**` for `OPENAI_API_KEY`, `sk-...`, audio APIs. Runs `npm run build` first if needed. |
 | `npm run verify:privacy:all`   | runs all three in order.                                      |
+
+## Stage demo
+
+For the live on-stage walkthrough, the runbook + failover assets + the
+rehearsal log live in `docs/`:
+
+- [`docs/stage-runbook.md`](./docs/stage-runbook.md) — T-60 / T-10
+  checklists, the nine on-stage beats, the failure-recovery decision
+  tree, and the privacy paragraph the operator reads at Beat 7.
+- [`docs/stage-runbook-assets.md`](./docs/stage-runbook-assets.md) —
+  failover / auxiliary assets (hot-spare phone, prerecorded
+  walkthrough video, backup hotspot, etc.) with owners and a printable
+  one-A4-page summary.
+- [`docs/rehearsal-log.md`](./docs/rehearsal-log.md) — rehearsal
+  template plus the three tabletop dress rehearsals captured against
+  this branch, with remaining stage risks and follow-ups.
+- `npm run prewarm` — wraps `scripts/prewarm.sh`. Operator-facing
+  probe. Reads `BASE_URL` (default `http://localhost:3000`), hits
+  `/api/health` then a tiny `/api/classifier` POST against the deployed
+  build, and exits non-zero on any non-2xx — treating
+  `503 missing_provider_env` as a CRITICAL pre-warm failure. Run at
+  T-60 and again at T-10 before doors.
