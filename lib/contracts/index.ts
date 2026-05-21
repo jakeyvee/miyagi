@@ -7,6 +7,7 @@ export type {
 export type {
   ClassifierRequest,
   ClassifierResponse,
+  ReaskResult,
 } from "./classifier";
 export type {
   SessionEvent,
