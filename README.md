@@ -72,6 +72,39 @@ All re-exported from `@/lib/contracts`:
 Follow-on tickets should import these instead of redefining request/response
 shapes.
 
+## Deployment
+
+The demo is deployed to **Vercel** from `main`. Every other branch produces a
+preview deployment with its own URL. See [`docs/deployment.md`](./docs/deployment.md)
+for the full runbook (repo connect, env config, verification, cache busting,
+rollback).
+
+Quick reference:
+
+1. **Vercel project**: framework auto-detects as Next.js; build, install, and
+   output dirs use the defaults. Node 20.x.
+2. **Region + function limits**: pinned in `vercel.json` at the repo root.
+   Region is `iad1`. The classifier route gets a 30s `maxDuration` for
+   streaming headroom; the health probe is capped at 5s.
+3. **Env vars** (Project Settings → Environment Variables):
+   - `OPENAI_API_KEY` — server-only. **Must not** start with `NEXT_PUBLIC_`,
+     or the value leaks into the browser bundle. Mark it as **Secret**. Apply
+     to Production **and** Preview.
+   - The app reads this via `getServerEnv()` in `lib/server/env.ts`, which
+     throws a clear error if unset. `next build` itself does **not** call
+     `getServerEnv()`, so a missing key fails at request time, not at build
+     time — see the runbook for the fail-closed contract.
+4. **Preview vs production**: same env vars, same code path. Previews carry
+   Vercel's default `noindex` header; production is indexable.
+5. **Verify a deploy**: hit `GET /api/health` from a phone. Expected:
+   `{ "ok": true, "hasOpenAiKey": true }`. The key value is never returned —
+   only whether it is set. If `hasOpenAiKey` is `false`, the classifier is
+   guaranteed to fail; fix the env var and **redeploy** (Vercel does not
+   auto-redeploy on env-var edits).
+6. **Classifier reachability**: `POST /api/classifier` currently returns
+   `501 not_implemented` by design. A `501` from the deployment URL proves
+   routing works; the OpenAI wire-up is a separate ticket.
+
 ## Out of scope for this foundation
 
 - Full parent flow, kid flow, LLM prompts, tree animation.

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["iad1"],
+  "functions": {
+    "app/api/classifier/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/health/route.ts": {
+      "maxDuration": 5
+    }
+  }
+}
