@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from "react";
 import type { ParentSettings } from "@/lib/contracts";
+import { setDemoMode, useDemoMode } from "@/lib/kid/demo-mode";
 import { ClassifierLogViewer } from "./ClassifierLogViewer";
 import { Settings } from "./Settings";
 import { heading, screen } from "./styles";
@@ -72,8 +73,51 @@ function persistTab(tab: Tab): void {
   }
 }
 
+const demoFooter: CSSProperties = {
+  padding: "1.25rem 1.5rem 1.5rem",
+  maxWidth: "30rem",
+  margin: "0 auto",
+  width: "100%",
+  display: "flex",
+  flexDirection: "column",
+  gap: "0.5rem",
+  boxSizing: "border-box",
+};
+
+const demoLinkButton: CSSProperties = {
+  appearance: "none",
+  background: "none",
+  border: "none",
+  color: "#666",
+  fontSize: "0.75rem",
+  textDecoration: "underline",
+  cursor: "pointer",
+  padding: 0,
+  alignSelf: "flex-start",
+};
+
+const demoPanel: CSSProperties = {
+  border: "1px solid #e5e5e0",
+  borderRadius: "0.5rem",
+  padding: "0.75rem 0.875rem",
+  background: "#fafaf7",
+  display: "flex",
+  flexDirection: "column",
+  gap: "0.375rem",
+  fontSize: "0.8125rem",
+  color: "#444",
+};
+
+const demoSwitchRow: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "0.5rem",
+};
+
 export function ParentDashboard({ initialSettings, onSettingsSaved }: Props) {
   const [tab, setTab] = useState<Tab>("settings");
+  const [demoPanelOpen, setDemoPanelOpen] = useState<boolean>(false);
+  const demoOn = useDemoMode();
 
   useEffect(() => {
     setTab(readPersistedTab());
@@ -116,6 +160,36 @@ export function ParentDashboard({ initialSettings, onSettingsSaved }: Props) {
       {tab === "settings" ? (
         <div role="tabpanel" id="parent-tab-settings" aria-labelledby="parent-tabbtn-settings">
           <Settings initial={initialSettings} onSaved={onSettingsSaved} />
+          <div style={demoFooter}>
+            <button
+              type="button"
+              style={demoLinkButton}
+              aria-expanded={demoPanelOpen}
+              aria-controls="parent-demo-panel"
+              onClick={() => setDemoPanelOpen((v) => !v)}
+            >
+              Demo mode
+            </button>
+            {demoPanelOpen ? (
+              <div id="parent-demo-panel" style={demoPanel} role="group" aria-label="Demo mode controls">
+                <div style={demoSwitchRow}>
+                  <input
+                    id="parent-demo-toggle"
+                    type="checkbox"
+                    checked={demoOn}
+                    onChange={(e) => setDemoMode(e.target.checked)}
+                  />
+                  <label htmlFor="parent-demo-toggle">
+                    Replay fixtures on the kid surface (stage/demo only)
+                  </label>
+                </div>
+                <p style={{ margin: 0, color: "#777" }}>
+                  When on, the kid surface skips the live tutor and plays a canned
+                  fixture instead. Leave off for normal use.
+                </p>
+              </div>
+            ) : null}
+          </div>
         </div>
       ) : (
         <main
