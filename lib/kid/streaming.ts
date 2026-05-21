@@ -74,6 +74,69 @@ export async function streamResponseText(
 }
 
 /**
+ * Async generator that yields a string in small chunks (~5-20 chars each)
+ * with a short delay between chunks so the kid surface's stream UI animates
+ * naturally during a demo. Used by fixture / demo mode (see
+ * `lib/kid/demo-mode.ts`) in place of a live `Response.body` stream.
+ *
+ * Honors `opts.signal`: when aborted, the iterator terminates cleanly on
+ * the next chunk boundary. Default token delay is 28ms — slow enough to
+ * read but fast enough that a long answer finishes inside a typical demo
+ * beat.
+ */
+export interface FakeStreamOptions {
+  /** ms between chunks. Defaults to 28. Use 0 for tests. */
+  tokenDelayMs?: number;
+  /** Optional cancellation. The iterator stops on the next chunk. */
+  signal?: AbortSignal;
+}
+
+export async function* fakeStreamFromText(
+  text: string,
+  opts: FakeStreamOptions = {},
+): AsyncIterable<string> {
+  const delay = opts.tokenDelayMs ?? 28;
+  if (text.length === 0) return;
+
+  let i = 0;
+  while (i < text.length) {
+    if (opts.signal?.aborted) return;
+    // Random chunk size in [5, 20]. Lower bound clamped to text remaining.
+    const remaining = text.length - i;
+    const chunkSize = Math.max(
+      1,
+      Math.min(remaining, 5 + Math.floor(Math.random() * 16)),
+    );
+    const chunk = text.slice(i, i + chunkSize);
+    i += chunkSize;
+    yield chunk;
+    if (delay > 0 && i < text.length) {
+      await sleep(delay, opts.signal);
+      if (opts.signal?.aborted) return;
+    }
+  }
+}
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    if (signal?.aborted) {
+      resolve();
+      return;
+    }
+    const id = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(id);
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    };
+    signal?.addEventListener("abort", onAbort);
+  });
+}
+
+/**
  * Generates a short opaque id for tagging session events. Avoids pulling
  * in a UUID dependency for the kid surface.
  */
