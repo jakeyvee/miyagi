@@ -61,7 +61,11 @@ which throws a clear error if a required key is missing.
 
 All re-exported from `@/lib/contracts`:
 
-- `Verdict`, `VERDICTS`, `isVerdict` — closed set of classifier verdicts.
+- `Verdict`, `VERDICTS`, `isVerdict` — closed set of classifier verdicts:
+  `assistive` (mechanical help — typing, vocab, spelling, factual recall),
+  `critical` (kid should think through it — math reasoning, essay drafting,
+  planning), `off_topic` (outside parent-set topic lock), `unsafe` (adult or
+  dangerous content).
 - `AgeBand`, `AGE_BANDS`, `isAgeBand` — closed set of age bands.
 - `ParentSettings`, `StudyTimeWindow` — local-first parent config.
 - `ClassifierRequest`, `ClassifierResponse` — POST `/api/classifier` shapes.

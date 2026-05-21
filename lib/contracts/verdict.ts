@@ -1,4 +1,4 @@
-export const VERDICTS = ["on_topic", "off_topic", "unsafe"] as const;
+export const VERDICTS = ["assistive", "critical", "off_topic", "unsafe"] as const;
 
 export type Verdict = (typeof VERDICTS)[number];
 
