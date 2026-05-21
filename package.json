@@ -8,7 +8,11 @@
     "eval:classifier": "tsx scripts/eval-classifier.ts",
     "lint": "next lint",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify:bundle": "bash scripts/inspect-client-bundle.sh",
+    "verify:network": "tsx scripts/verify-network-paths.ts",
+    "verify:privacy": "tsx scripts/verify-privacy.ts",
+    "verify:privacy:all": "npm run verify:privacy && npm run verify:network && npm run verify:bundle"
   },
   "dependencies": {
     "next": "^15.1.0",
